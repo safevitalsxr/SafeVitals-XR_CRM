@@ -15,12 +15,14 @@ import { GithubStrategy } from './strategies/github.strategy';
 import { Employee, EmployeeSchema } from '../employees/schemas/employee.schema';
 import { Role, RoleSchema } from '../roles/schemas/role.schema';
 import { AuditModule } from '../audit/audit.module';
+import { EmailModule } from '../common/email/email.module';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
     AuditModule,
+    EmailModule,
     MongooseModule.forFeature([
       { name: Session.name, schema: SessionSchema },
       { name: Otp.name, schema: OtpSchema },

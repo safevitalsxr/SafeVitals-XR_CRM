@@ -10,8 +10,13 @@ export class CreatePositionDto {
   @IsString()
   name: string;
 
+  @IsOptional()
   @IsMongoId()
-  departmentId: string;
+  departmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @IsOptional()
   @IsString()

@@ -23,7 +23,7 @@ export class Employee {
   @Prop()
   positionTitle: string; // Denormalized for display
 
-  @Prop({ type: Types.ObjectId, ref: 'Role', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Role', required: false })
   roleId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Employee', default: null })
@@ -43,6 +43,9 @@ export class Employee {
 
   @Prop()
   address?: string;
+
+  @Prop({ sparse: true, index: true })
+  firebaseUid?: string;
 }
 
 export const EmployeeSchema = SchemaFactory.createForClass(Employee);

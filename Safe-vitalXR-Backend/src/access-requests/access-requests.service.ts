@@ -2,13 +2,14 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { AccessRequest, AccessRequestDocument } from './schemas/access-request.schema';
+import { toObjectId } from '../common/utils/mongo.util';
 
 @Injectable()
 export class AccessRequestsService {
   constructor(@InjectModel(AccessRequest.name) private model: Model<AccessRequestDocument>) {}
 
   async create(employeeId: string, requestedSystem: string, reason: string) {
-    return this.model.create({ employeeId: new Types.ObjectId(employeeId), requestedSystem, reason });
+    return this.model.create({ employeeId: toObjectId(employeeId), requestedSystem, reason });
   }
 
   async findAll(status?: string, page = 1, limit = 20) {
@@ -23,7 +24,7 @@ export class AccessRequestsService {
   }
 
   async findByEmployee(employeeId: string) {
-    return this.model.find({ employeeId: new Types.ObjectId(employeeId) }).sort({ createdAt: -1 }).lean();
+    return this.model.find({ employeeId: toObjectId(employeeId) }).sort({ createdAt: -1 }).lean();
   }
 
   async review(id: string, reviewerId: string, status: 'Approved' | 'Rejected', note?: string) {
@@ -33,7 +34,7 @@ export class AccessRequestsService {
 
     return this.model.findByIdAndUpdate(id, {
       status,
-      reviewerId: new Types.ObjectId(reviewerId),
+      reviewerId: toObjectId(reviewerId),
       reviewNote: note,
       reviewedAt: new Date(),
     }, { new: true }).exec();

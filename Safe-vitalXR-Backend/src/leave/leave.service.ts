@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { LeaveRequest, LeaveRequestDocument } from './schemas/leave-request.schema';
+import { toObjectId } from '../common/utils/mongo.util';
 import { AuditService } from '../audit/audit.service';
 
 @Injectable()
@@ -14,7 +15,7 @@ export class LeaveService {
   async apply(employeeId: string, data: {
     leaveType: string; startDate: string; endDate: string; reason: string;
   }, actorId?: string) {
-    const leave = await this.model.create({ employeeId: new Types.ObjectId(employeeId), ...data });
+    const leave = await this.model.create({ employeeId: toObjectId(employeeId), ...data });
 
     await this.auditService.log({
       actorId: actorId || employeeId,
@@ -29,7 +30,7 @@ export class LeaveService {
 
   async findByEmployee(employeeId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
-    const filter = { employeeId: new Types.ObjectId(employeeId) };
+    const filter = { employeeId: toObjectId(employeeId) };
     const [data, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       this.model.countDocuments(filter),
@@ -55,7 +56,7 @@ export class LeaveService {
 
     const updated = await this.model.findByIdAndUpdate(id, {
       status,
-      reviewerId: new Types.ObjectId(reviewerId),
+      reviewerId: toObjectId(reviewerId),
       reviewNote: note,
       reviewedAt: new Date(),
     }, { new: true }).exec();

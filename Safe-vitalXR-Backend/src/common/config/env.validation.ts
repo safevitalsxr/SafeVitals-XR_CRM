@@ -56,6 +56,26 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   GITHUB_CALLBACK_URL?: string;
+
+  @IsString()
+  @IsOptional()
+  SMTP_HOST?: string;
+
+  @IsNumber()
+  @IsOptional()
+  SMTP_PORT?: number;
+
+  @IsString()
+  @IsOptional()
+  SMTP_USER?: string;
+
+  @IsString()
+  @IsOptional()
+  SMTP_PASS?: string;
+
+  @IsString()
+  @IsOptional()
+  EMAIL_FROM?: string;
 }
 
 export function validateEnvironment(config: Record<string, unknown>) {

@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Ticket, TicketDocument } from './schemas/ticket.schema';
+import { Ticket, TicketDocument, TicketStatus, TicketPriority } from './schemas/ticket.schema';
+import { toObjectId } from '../common/utils/mongo.util';
 
 @Injectable()
 export class TicketsService {
@@ -17,7 +18,7 @@ export class TicketsService {
     return this.model.create({
       ...data,
       ticketNumber,
-      createdBy: new Types.ObjectId(data.createdBy),
+      createdBy: toObjectId(data.createdBy),
     });
   }
 
@@ -34,7 +35,7 @@ export class TicketsService {
 
   async findByEmployee(employeeId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
-    const filter = { createdBy: new Types.ObjectId(employeeId) };
+    const filter = { createdBy: toObjectId(employeeId) };
     const [data, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       this.model.countDocuments(filter),
@@ -61,7 +62,7 @@ export class TicketsService {
   async addMessage(id: string, authorId: string, content: string) {
     const ticket = await this.model.findById(id).exec();
     if (!ticket) throw new NotFoundException('Ticket not found');
-    ticket.messages.push({ authorId: new Types.ObjectId(authorId) as any, content, createdAt: new Date() });
+    ticket.messages.push({ authorId: toObjectId(authorId) as any, content, createdAt: new Date() });
     return ticket.save();
   }
 }

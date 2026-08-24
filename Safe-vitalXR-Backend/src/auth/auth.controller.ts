@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Req, Res, HttpCode, HttpStatus, UseGuards, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto, VerifyOtpDto, ForgotPasswordDto, ResetPasswordDto, SetupPasswordDto, ResendOtpDto } from './dto/auth.dto';
+import { LoginDto, VerifyOtpDto, ForgotPasswordDto, ResetPasswordDto, SetupPasswordDto, ResendOtpDto, FirebaseLoginDto, RegisterDto, VerifyRegistrationOtpDto } from './dto/auth.dto';
 import type { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -13,6 +13,36 @@ import { Throttle } from '@nestjs/throttler';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('firebase-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login or authenticate with Firebase ID Token' })
+  firebaseLogin(@Body() dto: FirebaseLoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.authService.firebaseLogin(dto.idToken, req.ip, req.headers['user-agent']).then(result => {
+      if (result.token) this.setTokenCookie(res, result.token);
+      return result;
+    });
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Post('register')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Self-register: submit details and receive email OTP for verification' })
+  register(@Body() dto: RegisterDto, @Req() req: Request) {
+    return this.authService.register(dto.fullName, dto.email, dto.phone, req.ip, req.headers['user-agent']);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @Post('register/verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Self-register: verify email OTP and complete account creation' })
+  verifyRegistrationOtp(@Body() dto: VerifyRegistrationOtpDto, @Req() req: Request) {
+    return this.authService.verifyRegistrationOtp(dto.registrationToken, dto.otp, dto.password, req.ip, req.headers['user-agent']);
+  }
 
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -28,13 +58,16 @@ export class AuthController {
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify OTP challenge and receive JWT token.' })
-  verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) {
+  verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     return this.authService.verifyOtp(
       dto.userId,
       dto.otp,
       req.ip,
       req.headers['user-agent'],
-    );
+    ).then(result => {
+      if (result.token) this.setTokenCookie(res, result.token);
+      return result;
+    });
   }
 
   @Public()
@@ -69,8 +102,11 @@ export class AuthController {
   @Post('setup-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Activate account via invitation token and set permanent password.' })
-  setupPassword(@Body() dto: SetupPasswordDto, @Req() req: Request) {
-    return this.authService.setupPassword(dto.invitationToken, dto.password, req.ip, req.headers['user-agent']);
+  setupPassword(@Body() dto: SetupPasswordDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.authService.setupPassword(dto.invitationToken, dto.password, req.ip, req.headers['user-agent']).then(result => {
+      if (result.token) this.setTokenCookie(res, result.token);
+      return result;
+    });
   }
 
   @ApiBearerAuth()
@@ -78,8 +114,18 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Revoke active sessions and logout' })
-  logout(@CurrentUser('_id') userId: string, @Req() req: Request) {
+  logout(@CurrentUser('_id') userId: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    res.clearCookie('access_token');
     return this.authService.logout(userId.toString(), req.ip, req.headers['user-agent']);
+  }
+
+  private setTokenCookie(res: Response, token: string) {
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
   }
 
   @ApiBearerAuth()

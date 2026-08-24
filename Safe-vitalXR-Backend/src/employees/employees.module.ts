@@ -8,6 +8,7 @@ import { EmployeesController } from './employees.controller';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { AuditModule } from '../audit/audit.module';
+import { EmailModule } from '../common/email/email.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AuditModule } from '../audit/audit.module';
     UsersModule,
     AuthModule,
     AuditModule,
+    EmailModule,
   ],
   controllers: [EmployeesController],
   providers: [EmployeesService],

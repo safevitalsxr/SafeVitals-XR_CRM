@@ -3,14 +3,24 @@ import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
   const configService = app.get(ConfigService);
 
+  // Add Helmet for HTTP security headers
+  app.use(helmet({
+    contentSecurityPolicy: false, // Managed separately per-route; Swagger needs inline styles
+    crossOriginEmbedderPolicy: false,
+  }));
+
   // Enable graceful shutdown hooks for container lifecycle
   app.enableShutdownHooks();
+
+  app.use(cookieParser());
 
   // Configure CORS
   const allowedOrigins = configService.get<string>('ALLOWED_ORIGINS');
@@ -37,21 +47,24 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Safe Vitals XR API')
-    .setDescription('Production-grade Mobile & Web Backend for Safe Vitals Workforce Management Platform')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('Health', 'System health, liveness and readiness probes')
-    .addTag('Mobile', 'Mobile-optimized aggregated APIs and endpoints')
-    .addTag('Auth', 'Authentication and session management')
-    .addTag('Employees', 'Workforce and employee records')
-    .addTag('Attendance', 'Mobile clock-in, break tracking, and GPS geofencing')
-    .addTag('Leave', 'Leave requests and approvals')
-    .addTag('Tasks', 'Task allocation and tracking')
-    .addTag('Tickets', 'Support ticket resolution')
-    .addTag('Notifications', 'Mobile push alerts and system notifications')
-    .build();
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
+
+  if (!isProduction) {
+    const config = new DocumentBuilder()
+      .setTitle('Safe Vitals XR API')
+      .setDescription('Production-grade Mobile & Web Backend for Safe Vitals Workforce Management Platform')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addTag('Health', 'System health, liveness and readiness probes')
+      .addTag('Mobile', 'Mobile-optimized aggregated APIs and endpoints')
+      .addTag('Auth', 'Authentication and session management')
+      .addTag('Employees', 'Workforce and employee records')
+      .addTag('Attendance', 'Mobile clock-in, break tracking, and GPS geofencing')
+      .addTag('Leave', 'Leave requests and approvals')
+      .addTag('Tasks', 'Task allocation and tracking')
+      .addTag('Tickets', 'Support ticket resolution')
+      .addTag('Notifications', 'Mobile push alerts and system notifications')
+      .build();
 
   const customSwaggerCss = `
     @viewport { width: device-width; zoom: 1.0; }
@@ -77,24 +90,28 @@ async function bootstrap() {
     }
   `;
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    customCss: customSwaggerCss,
-    customSiteTitle: 'Safe Vitals XR API Docs',
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayRequestDuration: true,
-      docExpansion: 'none',
-      filter: true,
-    },
-  });
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      customCss: customSwaggerCss,
+      customSiteTitle: 'Safe Vitals XR API Docs',
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        docExpansion: 'none',
+        filter: true,
+      },
+    });
+  } else {
+    logger.log('🔒 Swagger disabled in production mode');
+  }
 
   app.setGlobalPrefix('api');
 
   const port = configService.get<number>('PORT') || 4000;
   await app.listen(port);
   logger.log(`🚀 Safe Vitals XR Backend running on http://localhost:${port}`);
-  logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
+  if (!isProduction) {
+    logger.log(`📄 Swagger docs: http://localhost:${port}/api/docs`);
+  }
 }
 bootstrap();
-

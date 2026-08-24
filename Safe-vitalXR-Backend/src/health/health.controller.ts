@@ -17,10 +17,6 @@ export class HealthController {
     return {
       status: isDbConnected ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      dependencies: {
-        database: isDbConnected ? 'healthy' : 'unhealthy',
-      },
     };
   }
 

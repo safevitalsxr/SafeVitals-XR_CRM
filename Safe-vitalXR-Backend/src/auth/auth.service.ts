@@ -4,7 +4,12 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  ConflictException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Employee, EmployeeDocument } from '../employees/schemas/employee.schema';
+import { EmailService } from '../common/email/email.service';
+import { FirebaseService } from '../common/firebase/firebase.service';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -15,6 +20,7 @@ import { Session, SessionDocument } from './schemas/session.schema';
 import { Otp, OtpDocument } from './schemas/otp.schema';
 import { Invitation, InvitationDocument, InvitationStatus } from './schemas/invitation.schema';
 import { AccountStatus } from '../users/schemas/user.schema';
+import { toObjectId } from '../common/utils/mongo.util';
 import { AuditService } from '../audit/audit.service';
 
 const OTP_EXPIRY_MINUTES = 5;
@@ -33,12 +39,45 @@ export class AuthService {
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
     @InjectModel(Otp.name) private otpModel: Model<OtpDocument>,
     @InjectModel(Invitation.name) private invitationModel: Model<InvitationDocument>,
+    @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
+    private configService: ConfigService,
+    private emailService: EmailService,
+    private firebaseService: FirebaseService,
   ) {}
+
+  // ─────────────────────────────────────────
+  // VALIDATION
+  // ─────────────────────────────────────────
+  private async validateEmailAndIp(email: string, ipAddress?: string) {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const disposableDomains = require('disposable-email-domains');
+    const domain = normalizedEmail.split('@')[1];
+    if (domain && disposableDomains.includes(domain)) {
+      throw new UnauthorizedException('Registration or login using disposable/temporary emails is not allowed.');
+    }
+
+    if (ipAddress && ipAddress !== '127.0.0.1' && ipAddress !== '::1' && !ipAddress.startsWith('192.168.') && !ipAddress.startsWith('10.')) {
+      try {
+        const response = await fetch(`https://proxycheck.io/v2/${ipAddress}?vpn=1`);
+        if (response.ok) {
+          const data = await response.json();
+          const ipData = data[ipAddress];
+          if (ipData && ipData.proxy === 'yes') {
+            throw new UnauthorizedException('Access denied. VPN or Proxy usage detected.');
+          }
+        }
+      } catch (err) {
+        this.logger.error(`VPN check failed for IP ${ipAddress}:`, err);
+      }
+    }
+  }
 
   // ─────────────────────────────────────────
   // LOGIN → Credential check, generate OTP
   // ─────────────────────────────────────────
   async login(email: string, password: string, ipAddress?: string, userAgent?: string) {
+    await this.validateEmailAndIp(email, ipAddress);
     const normalizedEmail = email.toLowerCase().trim();
     const user = await this.usersService.findByEmail(normalizedEmail);
     if (!user) {
@@ -52,7 +91,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isValid = await this.usersService.validatePassword(password, user.passwordHash);
+    const isValid = await this.usersService.validatePassword(password, user.passwordHash as string);
     if (!isValid) {
       await this.auditService.log({
         actorId: (user._id as Types.ObjectId).toString(),
@@ -91,6 +130,7 @@ export class AuthService {
 
     // Generate cryptographically secure OTP
     const otpPlain = this.generateOtp();
+    this.logger.log(`[DEV ONLY] Login OTP for ${normalizedEmail}: ${otpPlain}`);
     const otpHash = await bcrypt.hash(otpPlain, 12);
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
@@ -129,7 +169,7 @@ export class AuthService {
     }
 
     const otpRecord = await this.otpModel.findOne({
-      userId: new Types.ObjectId(userId),
+      userId: toObjectId(userId) as any,
       used: false,
       expiresAt: { $gt: new Date() },
     });
@@ -240,6 +280,7 @@ export class AuthService {
     }
 
     const otpPlain = this.generateOtp();
+    this.logger.log(`[DEV ONLY] Resend Login OTP for ${user.email}: ${otpPlain}`);
     const otpHash = await bcrypt.hash(otpPlain, 12);
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
@@ -349,15 +390,16 @@ export class AuthService {
     const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
     const expiresAt = new Date(Date.now() + INVITATION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
-    await this.invitationModel.deleteMany({ userId: new Types.ObjectId(userId) });
-    await this.invitationModel.create({
-      employeeId: new Types.ObjectId(employeeId),
-      userId: new Types.ObjectId(userId),
+    await this.invitationModel.deleteMany({ userId: toObjectId(userId) });
+    const inv = new this.invitationModel({
+      employeeId: toObjectId(employeeId) as any,
+      userId: toObjectId(userId) as any,
       email: email.toLowerCase().trim(),
       tokenHash,
       status: InvitationStatus.SENT,
       expiresAt,
     });
+    await inv.save();
 
     return { token: plainToken };
   }
@@ -410,7 +452,7 @@ export class AuthService {
   async logout(userId: string, ipAddress?: string, userAgent?: string) {
     if (Types.ObjectId.isValid(userId)) {
       await this.sessionModel.updateMany(
-        { userId: new Types.ObjectId(userId), revokedAt: null },
+        { userId: toObjectId(userId), revokedAt: null },
         { revokedAt: new Date() },
       );
 
@@ -490,5 +532,134 @@ export class AuthService {
   // ─────────────────────────────────────────
   private generateOtp(): string {
     return crypto.randomInt(100000, 1000000).toString();
+  }
+
+  async firebaseLogin(idToken: string, ipAddress?: string, userAgent?: string) {
+    const decodedToken = await this.firebaseService.verifyIdToken(idToken);
+    if (!decodedToken || !decodedToken.email) {
+      throw new UnauthorizedException('Invalid Firebase Token');
+    }
+    const normalizedEmail = decodedToken.email.toLowerCase().trim();
+    let user = await this.usersService.findByEmail(normalizedEmail);
+    if (!user) {
+      user = await this.usersService.create(normalizedEmail, undefined, decodedToken.name?.split(' ')[0] || 'User', decodedToken.name?.split(' ').slice(1).join(' ') || '', false);
+      const crypto = require('crypto');
+      await this.employeeModel.create({
+        userId: user._id,
+        employeeId: 'EMP-' + crypto.randomInt(100000, 999999).toString(),
+        joiningDate: new Date().toISOString().split('T')[0],
+      });
+      await this.usersService.userModel.findByIdAndUpdate(user._id, { status: AccountStatus.ACTIVE }).exec();
+    }
+    
+    // Create session + JWT
+    const crypto = require('crypto');
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await this.sessionModel.create({
+      userId: user._id,
+      sessionToken,
+      ipAddress,
+      userAgent,
+      expiresAt,
+    });
+
+    const token = this.jwtService.sign({
+      sub: (user._id as Types.ObjectId).toString(),
+      email: user.email,
+      sessionToken,
+    });
+    
+    const userPayload = {
+      id: (user._id as Types.ObjectId).toString(),
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      status: user.status,
+      mustChangePassword: user.mustChangePassword ?? false,
+    };
+    return { success: true, token, user: userPayload };
+  }
+
+  async register(fullName: string, email: string, phone: string, ipAddress?: string, userAgent?: string) {
+    await this.validateEmailAndIp(email, ipAddress);
+    const normalizedEmail = email.toLowerCase().trim();
+    let user = await this.usersService.findByEmail(normalizedEmail);
+    if (user && user.status === AccountStatus.ACTIVE) {
+      throw new ConflictException('Email already registered and active');
+    }
+    if (!user) {
+      user = await this.usersService.create(normalizedEmail, undefined, fullName.split(' ')[0], fullName.split(' ').slice(1).join(' ') || '', false, { phone } as any);
+    }
+
+    const crypto = require('crypto');
+    const otp = this.generateOtp();
+    
+    const registrationToken = crypto.randomBytes(32).toString('hex');
+
+    await this.usersService.userModel.findByIdAndUpdate(user._id, {
+      registrationOtp: otp,
+      registrationOtpExpiry: new Date(Date.now() + 15 * 60 * 1000),
+      registrationToken,
+    }).exec();
+
+    await this.emailService.sendRegistrationOtp(normalizedEmail, otp, user.firstName);
+
+    return {
+      success: true,
+      registrationToken,
+      message: 'OTP sent to registered email',
+    };
+  }
+
+  async verifyRegistrationOtp(registrationToken: string, otp: string, password: string, ipAddress?: string, userAgent?: string) {
+    const user = await this.usersService.userModel.findOne({ registrationToken }).exec();
+    if (!user) {
+      throw new UnauthorizedException('Invalid or expired OTP (Token not found)');
+    }
+
+    if (((user as any).registrationOtp !== otp || ((user as any).registrationOtpExpiry && (user as any).registrationOtpExpiry < new Date()))) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
+    const bcrypt = require('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    let firebaseUid = undefined;
+    try {
+      const fbUser = await this.firebaseService.createUser({
+        email: user.email,
+        displayName: `${user.firstName} ${user.lastName}`.trim(),
+        password: password,
+      });
+      firebaseUid = fbUser.uid;
+    } catch (err) {
+      this.logger.error(`Firebase user creation failed for ${user.email}:`, err);
+    }
+
+    await this.usersService.userModel.findByIdAndUpdate(user._id, {
+      status: AccountStatus.ACTIVE,
+      passwordHash,
+      firebaseUid,
+      $unset: { registrationOtp: "", registrationOtpExpiry: "", registrationToken: "" }
+    }).exec();
+
+    const existingEmployee = await this.employeeModel.findOne({ userId: user._id }).exec();
+    if (!existingEmployee) {
+      const crypto = require('crypto');
+      await this.employeeModel.create({
+        userId: user._id,
+        employeeId: 'EMP-' + crypto.randomInt(100000, 999999).toString(),
+        joiningDate: new Date().toISOString().split('T')[0],
+      });
+    }
+
+    return {
+      success: true,
+      pendingOnboarding: false,
+      message: 'Account successfully registered and verified',
+    };
   }
 }

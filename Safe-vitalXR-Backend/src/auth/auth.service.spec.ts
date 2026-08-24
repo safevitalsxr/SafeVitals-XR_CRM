@@ -1,7 +1,22 @@
+jest.mock('firebase-admin/app', () => ({
+  initializeApp: jest.fn(),
+  getApps: jest.fn(() => []),
+  cert: jest.fn(),
+}));
+jest.mock('firebase-admin/auth', () => ({
+  getAuth: jest.fn(() => ({
+    verifyIdToken: jest.fn(),
+    getUser: jest.fn(),
+    createUser: jest.fn(),
+  })),
+}));
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { AuditService } from '../audit/audit.service';
+import { EmailService } from '../common/email/email.service';
+import { FirebaseService } from '../common/firebase/firebase.service';
 import { JwtService } from '@nestjs/jwt';
 import { getModelToken } from '@nestjs/mongoose';
 import { Session } from './schemas/session.schema';
@@ -15,6 +30,8 @@ describe('AuthService (Security Audit Tests)', () => {
   let service: AuthService;
   let usersService: jest.Mocked<Partial<UsersService>>;
   let auditService: jest.Mocked<Partial<AuditService>>;
+  let emailService: jest.Mocked<Partial<EmailService>>;
+  let firebaseService: jest.Mocked<Partial<FirebaseService>>;
   let otpModel: any;
   let sessionModel: any;
   let invitationModel: any;
@@ -43,6 +60,19 @@ describe('AuthService (Security Audit Tests)', () => {
       findAll: jest.fn(),
     };
 
+    emailService = {
+      sendOtp: jest.fn().mockResolvedValue(true),
+      sendInvitation: jest.fn().mockResolvedValue(true),
+      sendPasswordReset: jest.fn().mockResolvedValue(true),
+      send: jest.fn().mockResolvedValue(true),
+    };
+
+    firebaseService = {
+      verifyIdToken: jest.fn().mockResolvedValue({ uid: 'test-uid', email: 'test@safevitals.com' } as any),
+      getUser: jest.fn().mockResolvedValue({ uid: 'test-uid', email: 'test@safevitals.com' } as any),
+      createUser: jest.fn().mockResolvedValue({ uid: 'test-uid', email: 'test@safevitals.com' } as any),
+    };
+
     otpModel = {
       deleteMany: jest.fn().mockResolvedValue({}),
       create: jest.fn().mockResolvedValue({}),
@@ -67,6 +97,8 @@ describe('AuthService (Security Audit Tests)', () => {
         AuthService,
         { provide: UsersService, useValue: usersService },
         { provide: AuditService, useValue: auditService },
+        { provide: EmailService, useValue: emailService },
+        { provide: FirebaseService, useValue: firebaseService },
         {
           provide: JwtService,
           useValue: {

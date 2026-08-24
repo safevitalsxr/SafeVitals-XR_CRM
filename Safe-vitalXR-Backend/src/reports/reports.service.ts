@@ -2,13 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WeeklyReport, ReportDocument } from './schemas/report.schema';
+import { toObjectId } from '../common/utils/mongo.util';
 
 @Injectable()
 export class ReportsService {
   constructor(@InjectModel(WeeklyReport.name) private model: Model<ReportDocument>) {}
 
   async create(employeeId: string, data: any) {
-    return this.model.create({ ...data, employeeId: new Types.ObjectId(employeeId) });
+    return this.model.create({ ...data, employeeId: toObjectId(employeeId) });
   }
 
   async findAll(status?: string, page = 1, limit = 20) {
@@ -24,7 +25,7 @@ export class ReportsService {
 
   async findByEmployee(employeeId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
-    const filter = { employeeId: new Types.ObjectId(employeeId) };
+    const filter = { employeeId: toObjectId(employeeId) };
     const [data, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       this.model.countDocuments(filter),

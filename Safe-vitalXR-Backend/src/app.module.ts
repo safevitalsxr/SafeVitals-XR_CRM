@@ -2,6 +2,7 @@ import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 
 // Feature Modules
@@ -23,6 +24,8 @@ import { AuditModule } from './audit/audit.module';
 import { ReportsModule } from './reports/reports.module';
 import { MobileModule } from './mobile/mobile.module';
 import { HealthModule } from './health/health.module';
+import { EmailModule } from './common/email/email.module';
+import { FirebaseModule } from './common/firebase/firebase.module';
 
 // Common
 import { validateEnv } from './common/config/env.validation';
@@ -46,6 +49,7 @@ import { AppService } from './app.service';
       inject: [ConfigService],
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    ScheduleModule.forRoot(),
 
     // Feature modules
     AuthModule,
@@ -66,6 +70,8 @@ import { AppService } from './app.service';
     ReportsModule,
     MobileModule,
     HealthModule,
+    EmailModule,
+    FirebaseModule,
   ],
   controllers: [AppController],
   providers: [

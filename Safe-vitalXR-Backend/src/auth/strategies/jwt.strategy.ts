@@ -7,6 +7,7 @@ import { Model } from 'mongoose';
 import { UsersService } from '../../users/users.service';
 import { Employee, EmployeeDocument } from '../../employees/schemas/employee.schema';
 import { Session, SessionDocument } from '../schemas/session.schema';
+import { Request } from 'express';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -17,7 +18,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request: Request) => {
+          let token = null;
+          if (request && request.cookies) {
+            token = request.cookies['access_token'];
+          }
+          return token || ExtractJwt.fromAuthHeaderAsBearerToken()(request);
+        },
+      ]),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('SESSION_SECRET') as string,
     });
@@ -26,8 +35,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: { sub: string; email: string; sessionToken?: string }) {
     const user = await this.usersService.findById(payload.sub);
     if (!user) throw new UnauthorizedException('User not found');
-    if (user.status === 'SUSPENDED' || user.status === 'DEACTIVATED') {
-      throw new UnauthorizedException('Account is inactive or suspended');
+    if (
+      user.status === 'SUSPENDED' ||
+      user.status === 'DEACTIVATED' ||
+      user.status === 'PENDING_APPROVAL'
+    ) {
+      throw new UnauthorizedException('Account is inactive, suspended, or pending approval');
     }
 
     // Verify server-side session validity (invalidated on logout or password reset)
@@ -81,6 +94,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'SafeVitals User',
       status: user.status,
       mustChangePassword: user.mustChangePassword ?? false,
       employeeDocId: employee?._id ? employee._id.toString() : null,

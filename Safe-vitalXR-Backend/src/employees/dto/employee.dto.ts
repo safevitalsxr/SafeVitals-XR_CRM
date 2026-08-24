@@ -12,7 +12,7 @@ export class CreateEmployeeDto {
   @ApiProperty() @IsMongoId() roleId: string;
   @ApiPropertyOptional() @IsOptional() @IsMongoId() managerId?: string;
   @ApiPropertyOptional() @IsOptional() @IsMongoId() workScheduleId?: string;
-  @ApiProperty() @IsString() temporaryPassword: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() temporaryPassword?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() joiningDate?: string;
 }
 
@@ -35,4 +35,41 @@ export class EmployeeQueryDto {
   @IsOptional() @IsMongoId() departmentId?: string;
   @IsOptional() @IsMongoId() teamId?: string;
   @IsOptional() @IsEnum(AccountStatus) status?: AccountStatus;
+}
+
+export class OnboardEmployeeByUidDto {
+  @ApiProperty({ example: 'd8F1k9LmP02Xq9Za', description: 'Unique Firebase Authentication UID' })
+  @IsString()
+  firebaseUid: string;
+
+  @ApiProperty({ description: 'Assigned Department MongoDB ID' })
+  @IsMongoId()
+  departmentId: string;
+
+  @ApiProperty({ description: 'Assigned Team MongoDB ID' })
+  @IsMongoId()
+  teamId: string;
+
+  @ApiProperty({ description: 'Assigned Position MongoDB ID' })
+  @IsMongoId()
+  positionId: string;
+
+  @ApiProperty({ description: 'Assigned Role MongoDB ID' })
+  @IsMongoId()
+  roleId: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsMongoId()
+  managerId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsMongoId()
+  workScheduleId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  joiningDate?: string;
 }

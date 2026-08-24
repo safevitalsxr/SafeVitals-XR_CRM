@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Put, Patch, Param, Body, Query, UseGuards, ForbiddenException,
 } from '@nestjs/common';
 import { EmployeesService } from './employees.service';
-import { CreateEmployeeDto, UpdateEmployeeDto, EmployeeQueryDto } from './dto/employee.dto';
+import { CreateEmployeeDto, UpdateEmployeeDto, EmployeeQueryDto, OnboardEmployeeByUidDto } from './dto/employee.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -49,9 +49,16 @@ export class EmployeesController {
 
   @Post()
   @Roles('Super Admin', 'Admin', 'HR Admin')
-  @ApiOperation({ summary: 'Create new employee (Admin/HR only)' })
+  @ApiOperation({ summary: 'Create new employee with email/password (Admin/HR only)' })
   create(@Body() dto: CreateEmployeeDto, @CurrentUser('_id') actorId: string) {
     return this.employees.create(dto, actorId?.toString());
+  }
+
+  @Post('onboard-uid')
+  @Roles('Super Admin', 'Admin', 'HR Admin')
+  @ApiOperation({ summary: 'Onboard employee directly by Firebase UID (Auto-fetches details from Firebase)' })
+  onboardByUid(@Body() dto: OnboardEmployeeByUidDto, @CurrentUser('_id') actorId: string) {
+    return this.employees.onboardByFirebaseUid(dto, actorId?.toString());
   }
 
   @Put(':id')

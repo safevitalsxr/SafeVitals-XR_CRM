@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Attendance, AttendanceDocument } from './schemas/attendance.schema';
+import { toObjectId } from '../common/utils/mongo.util';
 
 @Injectable()
 export class AttendanceService {
@@ -17,7 +18,7 @@ export class AttendanceService {
     device?: { platform?: string; deviceId?: string; appVersion?: string; ip?: string },
   ) {
     const date = this.today();
-    const existing = await this.model.findOne({ employeeId: new Types.ObjectId(employeeId), date }).exec();
+    const existing = await this.model.findOne({ employeeId: toObjectId(employeeId), date }).exec();
     if (existing?.checkInAt) throw new BadRequestException('Already checked in today');
 
     const payload: any = {
@@ -30,7 +31,7 @@ export class AttendanceService {
     const record = existing
       ? await this.model.findByIdAndUpdate(existing._id, payload, { new: true }).exec()
       : await this.model.create({
-          employeeId: new Types.ObjectId(employeeId),
+          employeeId: toObjectId(employeeId),
           date,
           ...payload,
         });
@@ -39,7 +40,7 @@ export class AttendanceService {
 
   async startBreak(employeeId: string) {
     const date = this.today();
-    const record = await this.model.findOne({ employeeId: new Types.ObjectId(employeeId), date }).exec();
+    const record = await this.model.findOne({ employeeId: toObjectId(employeeId), date }).exec();
     if (!record?.checkInAt) throw new BadRequestException('Not checked in');
     if (record.status === 'On Break') throw new BadRequestException('Already on break');
 
@@ -50,7 +51,7 @@ export class AttendanceService {
 
   async endBreak(employeeId: string) {
     const date = this.today();
-    const record = await this.model.findOne({ employeeId: new Types.ObjectId(employeeId), date }).exec();
+    const record = await this.model.findOne({ employeeId: toObjectId(employeeId), date }).exec();
     if (!record || record.status !== 'On Break') throw new BadRequestException('Not on break');
 
     const openBreak = record.breaks.find(b => !b.end);
@@ -65,7 +66,7 @@ export class AttendanceService {
     device?: { platform?: string; deviceId?: string; appVersion?: string; ip?: string },
   ) {
     const date = this.today();
-    const record = await this.model.findOne({ employeeId: new Types.ObjectId(employeeId), date }).exec();
+    const record = await this.model.findOne({ employeeId: toObjectId(employeeId), date }).exec();
     if (!record?.checkInAt) throw new BadRequestException('Not checked in');
     if (record.checkOutAt) throw new BadRequestException('Already checked out');
 
@@ -91,7 +92,7 @@ export class AttendanceService {
 
   async findByEmployee(employeeId: string, page = 1, limit = 30) {
     const skip = (page - 1) * limit;
-    const filter = { employeeId: new Types.ObjectId(employeeId) };
+    const filter = { employeeId: toObjectId(employeeId) };
     const [data, total] = await Promise.all([
       this.model.find(filter).sort({ date: -1 }).skip(skip).limit(limit).lean(),
       this.model.countDocuments(filter),
@@ -112,6 +113,6 @@ export class AttendanceService {
 
   async getTodayStatus(employeeId: string) {
     const date = this.today();
-    return this.model.findOne({ employeeId: new Types.ObjectId(employeeId), date }).exec();
+    return this.model.findOne({ employeeId: toObjectId(employeeId), date }).exec();
   }
 }

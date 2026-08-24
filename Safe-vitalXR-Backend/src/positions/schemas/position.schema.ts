@@ -11,7 +11,7 @@ export class Position {
   @Prop()
   description?: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Department', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: 'Department', required: false, index: true })
   departmentId: Types.ObjectId;
 
   @Prop({ enum: ['Intern', 'Junior', 'Mid-Level', 'Senior', 'Lead', 'Head', 'Custom'], default: 'Mid-Level' })

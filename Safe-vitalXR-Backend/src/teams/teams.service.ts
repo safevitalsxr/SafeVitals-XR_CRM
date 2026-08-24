@@ -2,18 +2,19 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Team, TeamDocument } from './schemas/team.schema';
+import { toObjectId } from '../common/utils/mongo.util';
 
 @Injectable()
 export class TeamsService {
   constructor(@InjectModel(Team.name) private teamModel: Model<TeamDocument>) {}
 
   async create(name: string, departmentId: string, leadId?: string): Promise<TeamDocument> {
-    return this.teamModel.create({ name, departmentId: new Types.ObjectId(departmentId), leadId: leadId ? new Types.ObjectId(leadId) : null });
+    return this.teamModel.create({ name, departmentId: toObjectId(departmentId), leadId: leadId ? toObjectId(leadId) : null });
   }
 
   async findAll(departmentId?: string): Promise<TeamDocument[]> {
     const filter: any = { status: 'Active' };
-    if (departmentId) filter.departmentId = new Types.ObjectId(departmentId);
+    if (departmentId) filter.departmentId = toObjectId(departmentId);
     return this.teamModel.find(filter).lean().exec();
   }
 

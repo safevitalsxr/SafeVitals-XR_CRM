@@ -4,15 +4,18 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { Model, Types, Connection } from 'mongoose';
 import { Employee, EmployeeDocument } from './schemas/employee.schema';
 import { EmployeeCounter, EmployeeCounterDocument } from './schemas/employee-counter.schema';
 import { User, UserDocument, AccountStatus } from '../users/schemas/user.schema';
-import { CreateEmployeeDto, UpdateEmployeeDto, EmployeeQueryDto } from './dto/employee.dto';
+import { CreateEmployeeDto, UpdateEmployeeDto, EmployeeQueryDto, OnboardEmployeeByUidDto } from './dto/employee.dto';
 import { UsersService } from '../users/users.service';
 import { AuthService } from '../auth/auth.service';
 import { AuditService } from '../audit/audit.service';
+import { EmailService } from '../common/email/email.service';
+import { FirebaseService } from '../common/firebase/firebase.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class EmployeesService {
@@ -25,6 +28,9 @@ export class EmployeesService {
     private usersService: UsersService,
     private authService: AuthService,
     private auditService: AuditService,
+    private emailService: EmailService,
+    private firebaseService: FirebaseService,
+    @InjectConnection() private connection: Connection,
   ) {}
 
   // Auto-generate Employee ID (EMP-000001) — atomic via findOneAndUpdate
@@ -43,9 +49,26 @@ export class EmployeesService {
     const existing = await this.usersService.findByEmail(dto.email);
     if (existing) throw new ConflictException('An employee with this email already exists');
 
+    // Create Firebase user natively (No password required yet)
+    let firebaseUid: string | undefined;
+    try {
+      const fbUser = await this.firebaseService.createUser({
+        email: dto.email,
+        displayName: `${dto.firstName} ${dto.lastName}`.trim(),
+      });
+      firebaseUid = fbUser.uid;
+    } catch (err: any) {
+      this.logger.warn(`Could not create Firebase user during onboarding: ${err.message}`);
+    }
+
     // Hash password & create User identity with forced initial password reset
-    const passwordHash = await this.usersService.hashPassword(dto.temporaryPassword);
+    const tempPassword = dto.temporaryPassword || crypto.randomBytes(16).toString('hex');
+    const passwordHash = await this.usersService.hashPassword(tempPassword);
     const user = await this.usersService.create(dto.email, passwordHash, dto.firstName, dto.lastName, true);
+    
+    if (firebaseUid) {
+      await this.userModel.findByIdAndUpdate(user._id, { firebaseUid }).exec();
+    }
     const userId = (user._id as Types.ObjectId).toString();
 
     // Auto-generate Employee ID
@@ -62,14 +85,16 @@ export class EmployeesService {
       managerId: dto.managerId ? new Types.ObjectId(dto.managerId) : null,
       joiningDate: dto.joiningDate || new Date().toISOString().split('T')[0],
     };
+    if (firebaseUid) createPayload.firebaseUid = firebaseUid;
     if (dto.workScheduleId) createPayload.workScheduleId = new Types.ObjectId(dto.workScheduleId);
 
     const employee = new this.employeeModel(createPayload);
     await employee.save();
     const empId = (employee._id as Types.ObjectId).toString();
 
-    // Create invitation
+    // Create invitation token & dispatch invite email to user
     const { token } = await this.authService.createInvitation(empId, userId, dto.email);
+    await this.emailService.sendInvitation(dto.email, token, dto.firstName, undefined, undefined, employeeId);
 
     // Audit log
     await this.auditService.log({
@@ -77,13 +102,103 @@ export class EmployeesService {
       action: 'EMPLOYEE_CREATED',
       entityType: 'Employee',
       entityId: empId,
-      after: { employeeId, email: dto.email },
+      after: { employeeId, email: dto.email, firebaseUid },
     });
 
     return {
       success: true,
       employee: await this.findById(empId),
     };
+  }
+
+  /**
+   * Onboard an employee using Firebase UID (Auto-fetches profile details from Firebase)
+   */
+  async onboardByFirebaseUid(dto: OnboardEmployeeByUidDto, actorId?: string) {
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const fbUser = await this.firebaseService.getUser(dto.firebaseUid);
+    if (!fbUser || !fbUser.email) {
+      throw new ConflictException('Firebase user has no registered email address in Firebase Auth');
+    }
+
+    const normalizedEmail = fbUser.email.toLowerCase().trim();
+
+    // Check if employee already exists with this Firebase UID
+    const existingEmployee = await this.employeeModel.findOne({
+      $or: [{ firebaseUid: dto.firebaseUid }]
+    }).exec();
+
+    if (existingEmployee) {
+      throw new ConflictException(`An employee profile (ID: ${existingEmployee.employeeId}) is already linked to Firebase UID "${dto.firebaseUid}"`);
+    }
+
+    // Find or create local User identity
+    let user = await this.usersService.findByEmail(normalizedEmail);
+    if (!user) {
+      const nameParts = (fbUser.displayName || 'SafeVitals Employee').trim().split(' ');
+      const firstName = nameParts[0] || 'Employee';
+      const lastName = nameParts.slice(1).join(' ') || 'Member';
+      const dummyPassword = crypto.randomBytes(32).toString('hex');
+      const hash = await this.usersService.hashPassword(dummyPassword);
+
+      user = await this.usersService.create(normalizedEmail, hash, firstName, lastName, false);
+      // Note: usersService.create does not take a session parameter currently, but we'll accept it as is since it's a separate collection.
+    }
+
+    // Link firebaseUid to user document and activate
+    await this.userModel.findByIdAndUpdate(user._id, {
+      firebaseUid: dto.firebaseUid,
+      status: AccountStatus.ACTIVE,
+      isEmailVerified: fbUser.emailVerified ?? true,
+    }, { session }).exec();
+
+    // Generate sequential Employee ID (EMP-XXXXXX)
+    const employeeId = await this.generateEmployeeId();
+
+    // Create Employee record in MongoDB
+    const createPayload: any = {
+      userId: user._id,
+      employeeId,
+      firebaseUid: dto.firebaseUid,
+      departmentId: dto.departmentId && Types.ObjectId.isValid(dto.departmentId) ? new Types.ObjectId(dto.departmentId) : undefined,
+      teamId: dto.teamId && Types.ObjectId.isValid(dto.teamId) ? new Types.ObjectId(dto.teamId) : undefined,
+      positionId: dto.positionId && Types.ObjectId.isValid(dto.positionId) ? new Types.ObjectId(dto.positionId) : undefined,
+      roleId: dto.roleId && Types.ObjectId.isValid(dto.roleId) ? new Types.ObjectId(dto.roleId) : undefined,
+      managerId: dto.managerId && Types.ObjectId.isValid(dto.managerId) ? new Types.ObjectId(dto.managerId) : undefined,
+      joiningDate: dto.joiningDate || new Date().toISOString().split('T')[0],
+    };
+    if (dto.workScheduleId) createPayload.workScheduleId = new Types.ObjectId(dto.workScheduleId);
+
+    const employee = new this.employeeModel(createPayload);
+    await employee.save({ session });
+    const empId = (employee._id as Types.ObjectId).toString();
+
+    // Audit log
+    await this.auditService.log({
+      actorId,
+      action: 'EMPLOYEE_ONBOARDED_FIREBASE_UID',
+      entityType: 'Employee',
+      entityId: empId,
+      after: { employeeId, firebaseUid: dto.firebaseUid, email: normalizedEmail },
+    }); // audit log happens outside transaction (or we'd need to pass session to auditService)
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return {
+      success: true,
+      message: 'Employee successfully onboarded and linked to Firebase UID',
+      employee: await this.findById(empId),
+    };
+    } catch (err: any) {
+      await session.abortTransaction();
+      session.endSession();
+      this.logger.error(`FATAL ERROR in onboardByFirebaseUid: ${err.message}`, err.stack);
+      throw err;
+    }
   }
 
   async findAll(query: EmployeeQueryDto) {
