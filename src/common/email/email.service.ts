@@ -36,6 +36,7 @@ export class EmailService implements OnModuleInit {
             user: smtpUser,
             pass: smtpPass,
           },
+          family: 4, // Force IPv4 to bypass Render's broken IPv6
         });
         this.logger.log(`Nodemailer SMTP transporter initialized (${smtpHost}:${smtpPort})`);
       } catch (err: any) {
