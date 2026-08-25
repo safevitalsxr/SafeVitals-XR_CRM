@@ -1,6 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import * as dns from 'dns';
+
+// Force Node.js to use IPv4 instead of IPv6 for all DNS lookups
+// This fixes the ENETUNREACH bug on Render free tier
+dns.setDefaultResultOrder('ipv4first');
 
 export interface SendEmailOptions {
   to: string | string[];
