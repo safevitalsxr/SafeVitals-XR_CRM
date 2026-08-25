@@ -18,10 +18,11 @@ export class NotificationsService {
   async findByUser(userId: string, page = 1, limit = 30) {
     const skip = (page - 1) * limit;
     const filter = { userId: new Types.ObjectId(userId) };
-    const [data, total] = await Promise.all([
+    const [docs, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       this.model.countDocuments(filter),
     ]);
+    const data = docs.map((d: any) => ({ ...d, id: d._id.toString() }));
     return { data, total, page, limit };
   }
 

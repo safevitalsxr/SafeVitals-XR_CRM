@@ -102,11 +102,8 @@ export class AuthController {
   @Post('setup-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Activate account via invitation token and set permanent password.' })
-  setupPassword(@Body() dto: SetupPasswordDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.authService.setupPassword(dto.invitationToken, dto.password, req.ip, req.headers['user-agent']).then(result => {
-      if (result.token) this.setTokenCookie(res, result.token);
-      return result;
-    });
+  setupPassword(@Body() dto: SetupPasswordDto, @Req() req: Request) {
+    return this.authService.setupPassword(dto.invitationToken, dto.password, req.ip, req.headers['user-agent']);
   }
 
   @ApiBearerAuth()

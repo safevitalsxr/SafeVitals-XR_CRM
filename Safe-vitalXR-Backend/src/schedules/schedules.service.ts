@@ -8,7 +8,10 @@ export class SchedulesService {
   constructor(@InjectModel(WorkSchedule.name) private model: Model<WorkScheduleDocument>) {}
 
   async create(data: any) { return this.model.create(data); }
-  async findAll() { return this.model.find().lean(); }
+  async findAll() {
+    const docs = await this.model.find().lean().exec();
+    return docs.map((d: any) => ({ ...d, id: d._id.toString() }));
+  }
   async findById(id: string) {
     const s = await this.model.findById(id).exec();
     if (!s) throw new NotFoundException('Schedule not found');

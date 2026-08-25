@@ -6,10 +6,10 @@ export class CreateEmployeeDto {
   @ApiProperty() @IsString() firstName: string;
   @ApiProperty() @IsString() lastName: string;
   @ApiProperty() @IsEmail() email: string;
-  @ApiProperty() @IsMongoId() departmentId: string;
-  @ApiProperty() @IsMongoId() teamId: string;
-  @ApiProperty() @IsMongoId() positionId: string;
-  @ApiProperty() @IsMongoId() roleId: string;
+  @ApiPropertyOptional() @IsOptional() @IsMongoId() departmentId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsMongoId() teamId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsMongoId() positionId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsMongoId() roleId?: string;
   @ApiPropertyOptional() @IsOptional() @IsMongoId() managerId?: string;
   @ApiPropertyOptional() @IsOptional() @IsMongoId() workScheduleId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() temporaryPassword?: string;
@@ -42,21 +42,25 @@ export class OnboardEmployeeByUidDto {
   @IsString()
   firebaseUid: string;
 
-  @ApiProperty({ description: 'Assigned Department MongoDB ID' })
+  @ApiPropertyOptional({ description: 'Assigned Department MongoDB ID' })
+  @IsOptional()
   @IsMongoId()
-  departmentId: string;
+  departmentId?: string;
 
-  @ApiProperty({ description: 'Assigned Team MongoDB ID' })
+  @ApiPropertyOptional({ description: 'Assigned Team MongoDB ID' })
+  @IsOptional()
   @IsMongoId()
-  teamId: string;
+  teamId?: string;
 
-  @ApiProperty({ description: 'Assigned Position MongoDB ID' })
+  @ApiPropertyOptional({ description: 'Assigned Position MongoDB ID' })
+  @IsOptional()
   @IsMongoId()
-  positionId: string;
+  positionId?: string;
 
-  @ApiProperty({ description: 'Assigned Role MongoDB ID' })
+  @ApiPropertyOptional({ description: 'Assigned Role MongoDB ID' })
+  @IsOptional()
   @IsMongoId()
-  roleId: string;
+  roleId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: safe-vitalxr-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Note: MONGODB_URI and SESSION_SECRET must be set manually in the Render Dashboard

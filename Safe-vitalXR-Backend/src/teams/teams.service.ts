@@ -15,7 +15,8 @@ export class TeamsService {
   async findAll(departmentId?: string): Promise<TeamDocument[]> {
     const filter: any = { status: 'Active' };
     if (departmentId) filter.departmentId = toObjectId(departmentId);
-    return this.teamModel.find(filter).lean().exec();
+    const teams = await this.teamModel.find(filter).populate('departmentId').populate('leadId').lean().exec();
+    return teams.map((t: any) => ({ ...t, id: t._id.toString() })) as any;
   }
 
   async findById(id: string): Promise<TeamDocument> {

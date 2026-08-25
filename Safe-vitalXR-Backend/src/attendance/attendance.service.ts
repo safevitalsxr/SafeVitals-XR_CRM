@@ -93,10 +93,11 @@ export class AttendanceService {
   async findByEmployee(employeeId: string, page = 1, limit = 30) {
     const skip = (page - 1) * limit;
     const filter = { employeeId: toObjectId(employeeId) };
-    const [data, total] = await Promise.all([
+    const [docs, total] = await Promise.all([
       this.model.find(filter).sort({ date: -1 }).skip(skip).limit(limit).lean(),
       this.model.countDocuments(filter),
     ]);
+    const data = docs.map((d: any) => ({ ...d, id: d._id.toString() }));
     return { data, total, page, limit };
   }
 
@@ -104,10 +105,11 @@ export class AttendanceService {
     const skip = (page - 1) * limit;
     const filter: any = {};
     if (date) filter.date = date;
-    const [data, total] = await Promise.all([
+    const [docs, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('employeeId').lean(),
       this.model.countDocuments(filter),
     ]);
+    const data = docs.map((d: any) => ({ ...d, id: d._id.toString() }));
     return { data, total, page, limit };
   }
 

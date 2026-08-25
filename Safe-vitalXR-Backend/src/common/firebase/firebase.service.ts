@@ -52,6 +52,7 @@ export class FirebaseService {
         this.logger.log(`Firebase Admin initialized successfully for project: ${projectId}`);
       } catch (err: any) {
         this.logger.error(`Failed to initialize Firebase Admin: ${err.message}`);
+        throw new Error(`Firebase Admin SDK Configuration Error: ${err.message}`);
       }
     } else {
       this.logger.warn('FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, or FIREBASE_PRIVATE_KEY missing. Firebase operations will run in mock/simulation mode.');

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Ticket, TicketDocument, TicketStatus, TicketPriority } from './schemas/ticket.schema';
+import { Ticket, TicketDocument } from './schemas/ticket.schema';
 import { toObjectId } from '../common/utils/mongo.util';
 
 @Injectable()
@@ -26,20 +26,22 @@ export class TicketsService {
     const skip = (page - 1) * limit;
     const filter: any = {};
     if (status) filter.status = status;
-    const [data, total] = await Promise.all([
+    const [docs, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('createdBy assignedTo').lean(),
       this.model.countDocuments(filter),
     ]);
+    const data = docs.map((d: any) => ({ ...d, id: d._id.toString() }));
     return { data, total, page, limit };
   }
 
   async findByEmployee(employeeId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
     const filter = { createdBy: toObjectId(employeeId) };
-    const [data, total] = await Promise.all([
+    const [docs, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       this.model.countDocuments(filter),
     ]);
+    const data = docs.map((d: any) => ({ ...d, id: d._id.toString() }));
     return { data, total, page, limit };
   }
 

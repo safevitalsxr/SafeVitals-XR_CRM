@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
@@ -10,7 +10,7 @@ export interface SendEmailOptions {
 }
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private defaultFrom: string;
   private frontendUrl: string;
@@ -43,6 +43,18 @@ export class EmailService {
       }
     } else {
       this.logger.warn('SMTP credentials (Nodemailer) not fully set in .env. Outgoing emails will be simulated in server logs.');
+    }
+  }
+
+  async onModuleInit() {
+    if (this.smtpTransporter) {
+      try {
+        await this.smtpTransporter.verify();
+        this.logger.log('SMTP connection verified successfully.');
+      } catch (err: any) {
+        this.logger.error(`SMTP Connection Failed: ${err.message}`);
+        throw new Error(`SMTP Configuration Error: ${err.message}`);
+      }
     }
   }
 
@@ -499,6 +511,75 @@ Body:\n${options.text || options.html}`);
       subject,
       html,
       text: `Your SafeVitals XR email verification code is: ${otp}. It expires in 5 minutes.`,
+    });
+  }
+
+  /**
+   * Send Workspace Access Granted Notification
+   */
+  async sendWorkspaceAccessGranted(to: string, firstName = 'User', role = 'Employee', department = 'Workspace'): Promise<boolean> {
+    const loginUrl = `${this.frontendUrl}/login`;
+    const subject = `[Welcome] Your SafeVitals XR Workspace is Ready`;
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SafeVitals XR Access Granted</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #07090e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #e6edf3;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #07090e; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 560px; background: linear-gradient(180deg, #0d1117 0%, #090d13 100%); border: 1px solid #1f2937; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6);" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="height: 4px; background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 32px 32px 20px 32px; text-align: center;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
+                Workspace Access Granted
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 32px 32px 32px;">
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid #1f2937; border-radius: 12px; padding: 24px;">
+                <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #9ca3af;">
+                  Hello <strong style="color: #ffffff;">${firstName}</strong>,
+                </p>
+                <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #9ca3af;">
+                  Your SafeVitals XR enterprise onboarding is fully complete! Your administrator has granted you access and assigned you the role of <strong style="color: #ffffff;">${role}</strong>.
+                </p>
+                <div style="text-align: center; margin: 32px 0;">
+                  <a href="${loginUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    Log In to Workspace
+                  </a>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 32px 32px 32px; border-top: 1px solid #1f2937; text-align: center;">
+              <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;">
+                SafeVitals XR Inc. &bull; Next-Gen Spatial Workforce & Telemetry Health
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    return this.send({
+      to,
+      subject,
+      html,
+      text: 'Your SafeVitals XR enterprise onboarding is complete! You can now log in.',
     });
   }
 }

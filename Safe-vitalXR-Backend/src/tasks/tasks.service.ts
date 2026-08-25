@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Task, TaskDocument, TaskStatus, TaskPriority } from './schemas/task.schema';
+import { Task, TaskDocument } from './schemas/task.schema';
 import { toObjectId } from '../common/utils/mongo.util';
 
 @Injectable()
@@ -22,10 +22,11 @@ export class TasksService {
     const filter: any = {};
     if (employeeId) filter.assignedTo = toObjectId(employeeId);
     if (status) filter.status = status;
-    const [data, total] = await Promise.all([
+    const [docs, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('assignedTo').lean(),
       this.model.countDocuments(filter),
     ]);
+    const data = docs.map((d: any) => ({ ...d, id: d._id.toString() }));
     return { data, total, page, limit };
   }
 

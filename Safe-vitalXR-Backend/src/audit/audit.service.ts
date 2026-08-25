@@ -36,10 +36,11 @@ export class AuditService {
 
   async findAll(page = 1, limit = 50) {
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      this.auditModel.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    const [docs, total] = await Promise.all([
+      this.auditModel.find().sort({ createdAt: -1 }).skip(skip).limit(limit).populate('actorId').lean(),
       this.auditModel.countDocuments(),
     ]);
+    const data = docs.map((d: any) => ({ ...d, id: d._id.toString() }));
     return { data, total, page, limit };
   }
 }

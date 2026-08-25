@@ -4,7 +4,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -108,8 +108,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   const port = configService.get<number>('PORT') || 4000;
-  await app.listen(port);
-  logger.log(`🚀 Safe Vitals XR Backend running on http://localhost:${port}`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`🚀 Safe Vitals XR Backend running on http://0.0.0.0:${port}`);
   if (!isProduction) {
     logger.log(`📄 Swagger docs: http://localhost:${port}/api/docs`);
   }

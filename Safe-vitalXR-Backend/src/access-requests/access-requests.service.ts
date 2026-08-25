@@ -16,15 +16,17 @@ export class AccessRequestsService {
     const skip = (page - 1) * limit;
     const filter: any = {};
     if (status) filter.status = status;
-    const [data, total] = await Promise.all([
+    const [docs, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).populate('employeeId reviewerId').lean(),
       this.model.countDocuments(filter),
     ]);
+    const data = docs.map((d: any) => ({ ...d, id: d._id.toString() }));
     return { data, total, page, limit };
   }
 
   async findByEmployee(employeeId: string) {
-    return this.model.find({ employeeId: toObjectId(employeeId) }).sort({ createdAt: -1 }).lean();
+    const docs = await this.model.find({ employeeId: toObjectId(employeeId) }).sort({ createdAt: -1 }).lean();
+    return docs.map((d: any) => ({ ...d, id: d._id.toString() }));
   }
 
   async review(id: string, reviewerId: string, status: 'Approved' | 'Rejected', note?: string) {

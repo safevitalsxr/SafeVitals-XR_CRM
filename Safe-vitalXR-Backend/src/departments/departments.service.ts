@@ -13,7 +13,8 @@ export class DepartmentsService {
   }
 
   async findAll(): Promise<DepartmentDocument[]> {
-    return this.deptModel.find({ status: 'Active' }).lean().exec();
+    const depts = await this.deptModel.find({ status: 'Active' }).populate('managerId').lean().exec();
+    return depts.map((d: any) => ({ ...d, id: d._id.toString() })) as any;
   }
 
   async findById(id: string): Promise<DepartmentDocument> {

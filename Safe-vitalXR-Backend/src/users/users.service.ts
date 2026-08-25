@@ -69,7 +69,7 @@ export class UsersService {
     
     try {
       const result = await this.userModel.deleteMany({
-        status: AccountStatus.PENDING,
+        status: AccountStatus.PENDING_APPROVAL,
         createdAt: { $lt: twentyFourHoursAgo },
       }).exec();
       

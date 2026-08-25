@@ -16,6 +16,7 @@ import { AuditService } from '../audit/audit.service';
 import { EmailService } from '../common/email/email.service';
 import { FirebaseService } from '../common/firebase/firebase.service';
 import * as crypto from 'crypto';
+import { toObjectId } from '../common/utils/mongo.util';
 
 @Injectable()
 export class EmployeesService {
@@ -46,9 +47,13 @@ export class EmployeesService {
 
   async create(dto: CreateEmployeeDto, actorId?: string) {
     // Check email uniqueness
-    const existing = await this.usersService.findByEmail(dto.email);
-    if (existing) throw new ConflictException('An employee with this email already exists');
-
+    const existingUser = await this.usersService.findByEmail(dto.email);
+    if (existingUser) {
+      const existingEmp = await this.employeeModel.findOne({ userId: existingUser._id });
+      if (existingEmp) {
+        throw new ConflictException(`An employee profile for ${dto.email} already exists in the directory.`);
+      }
+    }
     // Create Firebase user natively (No password required yet)
     let firebaseUid: string | undefined;
     try {
@@ -78,18 +83,18 @@ export class EmployeesService {
     const createPayload: any = {
       userId: user._id,
       employeeId,
-      departmentId: new Types.ObjectId(dto.departmentId),
-      teamId: new Types.ObjectId(dto.teamId),
-      positionId: new Types.ObjectId(dto.positionId),
-      roleId: new Types.ObjectId(dto.roleId),
-      managerId: dto.managerId ? new Types.ObjectId(dto.managerId) : null,
+      departmentId: toObjectId(dto.departmentId),
+      teamId: toObjectId(dto.teamId),
+      positionId: toObjectId(dto.positionId),
+      roleId: toObjectId(dto.roleId),
+      managerId: toObjectId(dto.managerId),
       joiningDate: dto.joiningDate || new Date().toISOString().split('T')[0],
     };
     if (firebaseUid) createPayload.firebaseUid = firebaseUid;
-    if (dto.workScheduleId) createPayload.workScheduleId = new Types.ObjectId(dto.workScheduleId);
+    if (dto.workScheduleId) createPayload.workScheduleId = toObjectId(dto.workScheduleId);
 
     const employee = new this.employeeModel(createPayload);
-    await employee.save();
+    try { await employee.save(); } catch(e) { if(e.code === 11000) throw new ConflictException('An employee profile is already linked to this user/email.'); throw e; }
     const empId = (employee._id as Types.ObjectId).toString();
 
     // Create invitation token & dispatch invite email to user
@@ -115,9 +120,6 @@ export class EmployeesService {
    * Onboard an employee using Firebase UID (Auto-fetches profile details from Firebase)
    */
   async onboardByFirebaseUid(dto: OnboardEmployeeByUidDto, actorId?: string) {
-    const session = await this.connection.startSession();
-    session.startTransaction();
-
     try {
       const fbUser = await this.firebaseService.getUser(dto.firebaseUid);
     if (!fbUser || !fbUser.email) {
@@ -126,14 +128,7 @@ export class EmployeesService {
 
     const normalizedEmail = fbUser.email.toLowerCase().trim();
 
-    // Check if employee already exists with this Firebase UID
-    const existingEmployee = await this.employeeModel.findOne({
-      $or: [{ firebaseUid: dto.firebaseUid }]
-    }).exec();
 
-    if (existingEmployee) {
-      throw new ConflictException(`An employee profile (ID: ${existingEmployee.employeeId}) is already linked to Firebase UID "${dto.firebaseUid}"`);
-    }
 
     // Find or create local User identity
     let user = await this.usersService.findByEmail(normalizedEmail);
@@ -153,28 +148,40 @@ export class EmployeesService {
       firebaseUid: dto.firebaseUid,
       status: AccountStatus.ACTIVE,
       isEmailVerified: fbUser.emailVerified ?? true,
-    }, { session }).exec();
+    }).exec();
 
     // Generate sequential Employee ID (EMP-XXXXXX)
     const employeeId = await this.generateEmployeeId();
 
-    // Create Employee record in MongoDB
-    const createPayload: any = {
-      userId: user._id,
-      employeeId,
+    // Update or Create Employee record in MongoDB
+    const updatePayload: any = {
       firebaseUid: dto.firebaseUid,
-      departmentId: dto.departmentId && Types.ObjectId.isValid(dto.departmentId) ? new Types.ObjectId(dto.departmentId) : undefined,
-      teamId: dto.teamId && Types.ObjectId.isValid(dto.teamId) ? new Types.ObjectId(dto.teamId) : undefined,
-      positionId: dto.positionId && Types.ObjectId.isValid(dto.positionId) ? new Types.ObjectId(dto.positionId) : undefined,
-      roleId: dto.roleId && Types.ObjectId.isValid(dto.roleId) ? new Types.ObjectId(dto.roleId) : undefined,
-      managerId: dto.managerId && Types.ObjectId.isValid(dto.managerId) ? new Types.ObjectId(dto.managerId) : undefined,
-      joiningDate: dto.joiningDate || new Date().toISOString().split('T')[0],
+      departmentId: toObjectId(dto.departmentId),
+      teamId: toObjectId(dto.teamId),
+      positionId: toObjectId(dto.positionId),
+      roleId: toObjectId(dto.roleId),
+      managerId: toObjectId(dto.managerId),
     };
-    if (dto.workScheduleId) createPayload.workScheduleId = new Types.ObjectId(dto.workScheduleId);
+    if (dto.workScheduleId) updatePayload.workScheduleId = toObjectId(dto.workScheduleId);
 
-    const employee = new this.employeeModel(createPayload);
-    await employee.save({ session });
-    const empId = (employee._id as Types.ObjectId).toString();
+    // If joiningDate is explicitly provided, update it
+    if (dto.joiningDate) updatePayload.joiningDate = dto.joiningDate;
+
+    // Check if employee already exists by userId
+    let employee = await this.employeeModel.findOne({ userId: user._id });
+    if (employee) {
+      // Update existing
+      employee = await this.employeeModel.findByIdAndUpdate(employee._id, updatePayload, { new: true });
+    } else {
+      // Create new
+      updatePayload.userId = user._id;
+      updatePayload.employeeId = employeeId;
+      updatePayload.joiningDate = dto.joiningDate || new Date().toISOString().split('T')[0];
+      employee = new this.employeeModel(updatePayload);
+      try { await employee.save(); } catch(e: any) { if(e.code === 11000) throw new ConflictException('An employee profile is already linked to this user/email.'); throw e; }
+    }
+    
+    const empId = (employee!._id as Types.ObjectId).toString();
 
     // Audit log
     await this.auditService.log({
@@ -183,10 +190,19 @@ export class EmployeesService {
       entityType: 'Employee',
       entityId: empId,
       after: { employeeId, firebaseUid: dto.firebaseUid, email: normalizedEmail },
-    }); // audit log happens outside transaction (or we'd need to pass session to auditService)
+    });
 
-    await session.commitTransaction();
-    session.endSession();
+    // Send access granted email
+    try {
+      let roleName = 'Employee';
+      if (updatePayload.roleId) {
+        // We'd need RoleModel to fetch the real name, but we'll default to Employee for now
+        // since we just want to send the notification
+      }
+      await this.emailService.sendWorkspaceAccessGranted(normalizedEmail, user.firstName, roleName);
+    } catch (err: any) {
+      this.logger.warn(`Could not send workspace access email to ${normalizedEmail}: ${err.message}`);
+    }
 
     return {
       success: true,
@@ -194,8 +210,6 @@ export class EmployeesService {
       employee: await this.findById(empId),
     };
     } catch (err: any) {
-      await session.abortTransaction();
-      session.endSession();
       this.logger.error(`FATAL ERROR in onboardByFirebaseUid: ${err.message}`, err.stack);
       throw err;
     }
@@ -218,8 +232,17 @@ export class EmployeesService {
 
     const pipeline: any[] = [
       { $match: matchFilter },
-      { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: 'user' } },
-      { $unwind: '$user' },
+      { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: 'userId' } },
+      { $unwind: { path: '$userId', preserveNullAndEmptyArrays: true } },
+      { $addFields: { user: '$userId' } },
+      { $lookup: { from: 'roles', localField: 'roleId', foreignField: '_id', as: 'roleId' } },
+      { $unwind: { path: '$roleId', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'departments', localField: 'departmentId', foreignField: '_id', as: 'departmentId' } },
+      { $unwind: { path: '$departmentId', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'teams', localField: 'teamId', foreignField: '_id', as: 'teamId' } },
+      { $unwind: { path: '$teamId', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'positions', localField: 'positionId', foreignField: '_id', as: 'positionId' } },
+      { $unwind: { path: '$positionId', preserveNullAndEmptyArrays: true } },
     ];
 
     if (query.status) pipeline.push({ $match: { 'user.status': query.status } });
@@ -242,7 +265,7 @@ export class EmployeesService {
       { $sort: { createdAt: -1 } },
       {
         $facet: {
-          data: [{ $skip: skip }, { $limit: limit }, { $project: { 'user.passwordHash': 0 } }],
+          data: [{ $skip: skip }, { $limit: limit }, { $addFields: { id: '$_id', 'user.id': '$user._id' } }, { $project: { 'user.passwordHash': 0 } }],
           total: [{ $count: 'count' }],
         },
       },
@@ -350,3 +373,7 @@ export class EmployeesService {
     };
   }
 }
+
+
+
+

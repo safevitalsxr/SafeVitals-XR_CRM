@@ -28,7 +28,8 @@ export class RolesService {
   }
 
   async findAll(): Promise<RoleDocument[]> {
-    return this.roleModel.find().lean().exec();
+    const roles = await this.roleModel.find().lean().exec();
+    return roles.map((r: any) => ({ ...r, id: r._id.toString() })) as any;
   }
 
   async findById(id: string): Promise<RoleDocument> {

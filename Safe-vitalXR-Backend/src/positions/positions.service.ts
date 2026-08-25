@@ -15,7 +15,8 @@ export class PositionsService {
   async findAll(departmentId?: string): Promise<PositionDocument[]> {
     const filter: any = { status: 'Active' };
     if (departmentId) filter.departmentId = toObjectId(departmentId);
-    return this.posModel.find(filter).lean().exec();
+    const pos = await this.posModel.find(filter).populate('departmentId').lean().exec();
+    return pos.map((p: any) => ({ ...p, id: p._id.toString() })) as any;
   }
 
   async findById(id: string): Promise<PositionDocument> {
