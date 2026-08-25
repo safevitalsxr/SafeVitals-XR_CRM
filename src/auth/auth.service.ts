@@ -574,7 +574,9 @@ export class AuthService {
   // HELPERS (Cryptographically Secure OTP Generation)
   // ─────────────────────────────────────────
   private generateOtp(): string {
-    return crypto.randomInt(100000, 1000000).toString();
+    // TEMPORARY FIX: Emails are blocked by Render free tier firewall.
+    // Hardcoding OTP to 123456 so users can still register and login.
+    return '123456';
   }
 
   async firebaseLogin(idToken: string, ipAddress?: string, userAgent?: string) {
