@@ -25,6 +25,12 @@ export class PositionsService {
     return pos;
   }
 
+  async archive(id: string): Promise<{success: boolean}> {
+    const pos = await this.posModel.findByIdAndUpdate(id, { status: 'Archived' }).exec();
+    if (!pos) throw new NotFoundException('Position not found');
+    return { success: true };
+  }
+
   async update(id: string, data: any): Promise<PositionDocument> {
     const pos = await this.posModel.findByIdAndUpdate(id, data, { new: true }).exec();
     if (!pos) throw new NotFoundException('Position not found');

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { PositionsService } from './positions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -61,6 +61,13 @@ export class PositionsController {
   @ApiOperation({ summary: 'Create position (Admin only)' })
   create(@Body() dto: CreatePositionDto) {
     return this.positions.create(dto);
+  }
+
+  @Patch(':id/archive')
+  @Roles('Super Admin', 'Admin')
+  @ApiOperation({ summary: 'Archive position (Admin only)' })
+  archive(@Param('id') id: string) {
+    return this.positions.archive(id);
   }
 
   @Put(':id')

@@ -36,6 +36,12 @@ export class TasksService {
     return task;
   }
 
+  async delete(id: string) {
+    const t = await this.taskModel.findByIdAndDelete(id).exec();
+    if (!t) throw new NotFoundException('Task not found');
+    return { success: true };
+  }
+
   async updateStatus(id: string, status: string) {
     const task = await this.model.findByIdAndUpdate(id, { status }, { new: true }).exec();
     if (!task) throw new NotFoundException('Task not found');

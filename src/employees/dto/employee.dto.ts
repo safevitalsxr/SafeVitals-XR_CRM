@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, IsMongoId, IsDateString, IsEnum, MaxLength } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsMongoId, IsDateString, IsEnum, MaxLength, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AccountStatus } from '../../users/schemas/user.schema';
 
@@ -19,11 +19,11 @@ export class CreateEmployeeDto {
 export class UpdateEmployeeDto {
   @ApiPropertyOptional() @IsOptional() @IsString() firstName?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() lastName?: string;
-  @ApiPropertyOptional() @IsOptional() @IsMongoId() departmentId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsMongoId() teamId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsMongoId() positionId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsMongoId() roleId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsMongoId() managerId?: string;
+  @ApiPropertyOptional() @IsOptional() @ValidateIf(o => o.departmentId !== '' && o.departmentId !== null) @IsMongoId() departmentId?: string;
+  @ApiPropertyOptional() @IsOptional() @ValidateIf(o => o.teamId !== '' && o.teamId !== null) @IsMongoId() teamId?: string;
+  @ApiPropertyOptional() @IsOptional() @ValidateIf(o => o.positionId !== '' && o.positionId !== null) @IsMongoId() positionId?: string;
+  @ApiPropertyOptional() @IsOptional() @ValidateIf(o => o.roleId !== '' && o.roleId !== null) @IsMongoId() roleId?: string;
+  @ApiPropertyOptional() @IsOptional() @ValidateIf(o => o.managerId !== '' && o.managerId !== null) @IsMongoId() managerId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() address?: string;
 }

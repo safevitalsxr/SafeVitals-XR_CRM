@@ -78,7 +78,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const superadminEmail = this.configService.get<string>('SUPERADMIN_EMAIL');
     const isSuperAdminEmail = 
       (superadminEmail && user.email.toLowerCase() === superadminEmail.toLowerCase()) || 
-      user.email.toLowerCase() === 'parupallisaiharshitha@gmail.com';
+      user.email.toLowerCase() === 'parupallisaiharshitha@gmail.com' || user.email.toLowerCase() === 'saiharshitha9867@gmail.com';
 
     const roleName = isSuperAdminEmail
       ? 'Super Admin'

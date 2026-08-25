@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Param, Body, Query, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Param, Body, Query, UseGuards, ForbiddenException } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -83,6 +83,13 @@ export class TasksController {
   @ApiOperation({ summary: 'Update task details (Admin/Manager only)' })
   update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
     return this.tasks.update(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles('Super Admin', 'Admin', 'Manager')
+  @ApiOperation({ summary: 'Delete task (Admin/Manager only)' })
+  delete(@Param('id') id: string) {
+    return this.tasks.delete(id);
   }
 
   @Patch(':id/status')

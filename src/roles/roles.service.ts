@@ -41,7 +41,7 @@ export class RolesService {
   async update(id: string, data: any, actorId?: string): Promise<RoleDocument> {
     const role = await this.roleModel.findById(id).exec();
     if (!role) throw new NotFoundException('Role not found');
-    if (role.isSystem && data.name) throw new ConflictException('Cannot rename system roles');
+    if (role.isSystem && data.name && data.name.trim().toLowerCase() !== role.name.trim().toLowerCase()) throw new ConflictException('Cannot rename system roles');
     const updated = await this.roleModel.findByIdAndUpdate(id, data, { new: true }).exec();
 
     await this.auditService.log({
@@ -105,3 +105,5 @@ export class RolesService {
     }
   }
 }
+
+
