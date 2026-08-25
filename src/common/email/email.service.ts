@@ -24,8 +24,9 @@ export class EmailService implements OnModuleInit {
   constructor(private configService: ConfigService) {
     this.defaultFrom = this.configService.get<string>('EMAIL_FROM') || 'SafeVitals XR <no-reply@safevitals.in>';
     this.frontendUrl = (this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000').replace(/\/+$/, '');
+  }
 
-    // Configure Nodemailer SMTP Transporter
+  async onModuleInit() {
     const smtpHost = this.configService.get<string>('SMTP_HOST');
     const smtpPort = this.configService.get<number>('SMTP_PORT') || 587;
     const smtpUser = this.configService.get<string>('SMTP_USER');
@@ -33,34 +34,32 @@ export class EmailService implements OnModuleInit {
 
     if (smtpHost && smtpUser && smtpPass) {
       try {
+        // ULTIMATE FIX: Manually resolve the host to IPv4 to guarantee we bypass the ENETUNREACH bug
+        const { address } = await dns.promises.lookup(smtpHost, { family: 4 });
+        this.logger.log(`Resolved SMTP Host ${smtpHost} to IPv4: ${address}`);
+
         this.smtpTransporter = nodemailer.createTransport({
-          host: smtpHost,
+          host: address, // Pass the raw IPv4 address!
           port: Number(smtpPort),
           secure: Number(smtpPort) === 465,
           auth: {
             user: smtpUser,
             pass: smtpPass,
           },
-          family: 4, // Force IPv4 to bypass Render's broken IPv6
+          tls: {
+            // Gmail requires the servername to match the cert when connecting by raw IP
+            servername: smtpHost,
+          },
         });
-        this.logger.log(`Nodemailer SMTP transporter initialized (${smtpHost}:${smtpPort})`);
-      } catch (err: any) {
-        this.logger.error(`Failed to initialize Nodemailer transporter: ${err.message}`);
-      }
-    } else {
-      this.logger.warn('SMTP credentials (Nodemailer) not fully set in .env. Outgoing emails will be simulated in server logs.');
-    }
-  }
 
-  async onModuleInit() {
-    if (this.smtpTransporter) {
-      try {
         await this.smtpTransporter.verify();
-        this.logger.log('SMTP connection verified successfully.');
+        this.logger.log(`Nodemailer SMTP transporter verified successfully (${smtpHost}:${smtpPort})`);
       } catch (err: any) {
         this.logger.error(`SMTP Connection Failed: ${err.message}. Emails will be simulated in server logs.`);
         this.smtpTransporter = null;
       }
+    } else {
+      this.logger.warn('SMTP credentials (Nodemailer) not fully set in .env. Outgoing emails will be simulated in server logs.');
     }
   }
 
