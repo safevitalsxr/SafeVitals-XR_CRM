@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: safevitals
-  labels:
-    app.kubernetes.io/name: safevitals
-    app.kubernetes.io/part-of: safevitals-platform
