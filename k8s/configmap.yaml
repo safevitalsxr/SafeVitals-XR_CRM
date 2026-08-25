@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: safevitals-backend-config
+  namespace: safevitals
+  labels:
+    app.kubernetes.io/name: safevitals-backend
+    app.kubernetes.io/component: api
+data:
+  NODE_ENV: "production"
+  PORT: "4000"
+  SUPERADMIN_EMAIL: "admin@safevitals.com"
+  FRONTEND_URL: "https://app.safevitals.com"
+  ALLOWED_ORIGINS: "https://app.safevitals.com,https://admin.safevitals.com"

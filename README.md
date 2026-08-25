@@ -1,219 +1,460 @@
-# Safe Vitals XR — Backend API Server
+# SafeVitals XR — Backend API Server
 
-<p align="center">
-  <img src="https://nestjs.com/img/logo-small.svg" width="100" alt="Nest Logo" />
-</p>
-
-<p align="center">
-  <strong>Production-Grade Workforce Management, Mobile Operations & Security Platform Backend</strong>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/NestJS-11.0-E0234E?style=flat&logo=nestjs" alt="NestJS" />
-  <img src="https://img.shields.io/badge/TypeScript-5.7-blue?style=flat&logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/MongoDB-Mongoose-47A248?style=flat&logo=mongodb" alt="MongoDB" />
-  <img src="https://img.shields.io/badge/Auth-JWT%20%2B%20OTP%20%2B%20OAuth-F97316?style=flat" alt="Authentication" />
-  <img src="https://img.shields.io/badge/Docs-Swagger%20%2F%20OpenAPI-85EA2D?style=flat&logo=swagger" alt="Swagger" />
-</p>
+> **Production-Hardened · Security-Audited · Containerized · Kubernetes-Ready**
+>
+> An enterprise-grade NestJS REST API powering the SafeVitals XR Workforce Command Center — managing employee lifecycle, biometric attendance, leave workflows, task sprints, support ticketing, full Role-Based Access Control, and immutable audit logging for modern XR/spatial computing organisations.
 
 ---
 
-## 📌 About The Project
+## Table of Contents
 
-**Safe Vitals XR Backend** is an enterprise-grade backend service built to power workforce management, employee administration, field workforce operations, and organizational security. 
-
-It provides an end-to-end suite of RESTful APIs designed for both **modern web dashboards** and **cross-platform mobile applications** (React Native, Flutter, iOS, Android, and PWAs).
-
----
-
-## 🚀 Key Features
-
-### 📱 1. Mobile-First & Field Workforce Operations
-- **Single-Roundtrip Mobile Dashboard (`/api/mobile/dashboard`)**: Aggregates employee profile, real-time clock-in/out status, today's schedule, pending tasks, and unread notifications into one fast request to minimize mobile battery and data consumption.
-- **GPS Geolocation & Device Telemetry**: Mobile punch-in/out tracking capturing latitude, longitude, accuracy, reverse-geocoded address, and device metadata (iOS/Android platform, OS version, device ID).
-- **Push Notification Token Management**: Endpoints to register/unregister FCM, APNs, and Expo push tokens for instant mobile alerts.
-- **Touch-Friendly Swagger UI**: Responsive dark-themed API explorer at `/api/docs` optimized for mobile screens and tablets.
-
-### 🔐 2. Enterprise Authentication & Security
-- **Multi-Factor Authentication (2FA / OTP)**: Email-based OTP challenge flow for secure logins.
-- **OAuth2 Integration**: GitHub OAuth authentication flow.
-- **Role-Based Access Control (RBAC)**: Fine-grained permissions per role (Super Admin, HR Admin, Manager, Employee, etc.).
-- **Invitation Onboarding**: Secure tokenized onboarding for newly registered staff with permanent password setup.
-- **Session & Identity Management**: JWT bearer tokens, active session revocation, and automated account suspension/reactivation.
-
-### 👥 3. Workforce & Organization Structure
-- **Atomic Employee ID Generation**: Sequential, zero-collision employee IDs (`EMP-000001`).
-- **Hierarchical Modeling**: Departments, teams, positions, and direct manager reporting structures.
-- **Employee Lifecycle**: Profile management, work schedule linking, status transitions (`ACTIVE`, `SUSPENDED`, `DEACTIVATED`).
-
-### ⏱️ 4. Attendance, Leave & Shift Scheduling
-- **Shift Attendance**: Daily check-in, check-out, multi-interval break tracking, and automatic working/break minute calculations.
-- **Work Schedules**: Customizable recurring weekly shift schedules (start/end times, working days).
-- **Leave Management**: Leave requests with full manager review workflows (Approve, Reject, Cancel).
-
-### 📋 5. Operations, Tasks & Support Tickets
-- **Task Management**: Assign tasks to employees or teams with priority and status transitions (`To Do`, `In Progress`, `Done`).
-- **Support Ticketing**: Internal ticketing with threaded conversation messages and status resolution.
-- **Access Requests**: Formal requests for elevated software/hardware system permissions.
-
-### 📊 6. Reports, Cloud Storage & Audit Trail
-- **Cloud File Attachments**: Multipart/form-data file uploads powered by **Supabase Storage**.
-- **Report Approvals**: Multi-attachment incident or shift reports with reviewer workflows.
-- **Immutable Audit Logging**: Automatic audit trail recording security and data modification events.
+1. [What is this project?](#what-is-this-project)
+2. [What changed — Production Hardening](#what-changed--production-hardening)
+3. [Key Features](#key-features)
+4. [Technology Stack](#technology-stack)
+5. [Project Structure](#project-structure)
+6. [Getting Started](#getting-started)
+7. [Environment Variables](#environment-variables)
+8. [Running the Server](#running-the-server)
+9. [Docker](#docker)
+10. [Kubernetes Deployment](#kubernetes-deployment)
+11. [API Reference](#api-reference)
+12. [Authentication Flow](#authentication-flow)
+13. [RBAC — Roles & Permissions](#rbac--roles--permissions)
+14. [Security Architecture](#security-architecture)
+15. [Testing](#testing)
+16. [Frontend](#frontend)
+17. [License](#license)
 
 ---
 
-## 🛠️ Technology Stack
+## What is this project?
 
-- **Framework**: [NestJS 11](https://nestjs.com/) (Node.js framework)
-- **Language**: TypeScript 5.7
-- **Database & ODM**: MongoDB with [Mongoose 9](https://mongoosejs.com/)
-- **Authentication**: Passport.js (`passport-jwt`, `passport-github2`, `bcryptjs`)
-- **Validation**: `class-validator` & `class-transformer`
-- **Cloud Storage**: `@supabase/supabase-js`
-- **Documentation**: `@nestjs/swagger` (OpenAPI 3.0)
-- **Security & Reliability**: `@nestjs/throttler` (Rate limiting), `helmet`, custom Global Exception Filter, Request ID middleware
+**SafeVitals XR Backend** is the server-side API powering the SafeVitals XR Workforce Command Center. It is built with [NestJS 11](https://nestjs.com/) and [MongoDB](https://www.mongodb.com/) (via Mongoose 9 / Atlas), and exposes a comprehensive set of REST endpoints for:
+
+- **Authentication & Security** — JWT sessions, 2FA OTP (crypto-secure), GitHub OAuth2, invitation-based onboarding
+- **Workforce Management** — Employee directory, department structures, team allocations, role-based access
+- **Time & Attendance** — Daily punch in/out, multi-interval break tracking, GPS geolocation check-in
+- **Leave Management** — Employee self-service leave requests with manager approval workflows
+- **Tasks & Sprints** — Task assignment and Kanban status transitions (`To Do → In Progress → Done`)
+- **Support Tickets** — Internal helpdesk with threaded messages and resolution tracking
+- **Cloud File Storage** — Multipart report uploads backed by Supabase Storage
+- **Audit Trail** — Immutable, tamper-evident logging of every security and data mutation event
+- **Mobile Dashboard** — Single round-trip aggregated endpoint for mobile clients
 
 ---
 
-## 📁 Project Structure
+## What changed — Production Hardening
 
-```text
+This codebase was **fully security-audited and production-hardened**. Below is a summary of every improvement made.
+
+### Security Fixes
+
+| Area | Before | After |
+|:---|:---|:---|
+| OTP generation | `Math.random()` (predictable) | `crypto.randomInt()` (CSPRNG) |
+| OTP in logs | Logged in plaintext | Never logged |
+| `devOtp` / `devToken` in responses | Leaked in API response body | Removed — server-side only |
+| Invitation token in response | Returned to caller on employee create | Removed — dispatched server-side via email only |
+| JWT strategy | User status not re-validated | Checks `isActive` + resolves role, permissions, and employee ID per token |
+| RBAC guards | Inconsistently applied | `RolesGuard` + `@Roles()` enforced on every protected controller |
+| IDOR | Attendance / employees had no ownership check | Users can only act on their own records unless Admin/Manager |
+| Pagination | Unbounded `limit` queries | Hard capped at 100 per request |
+| Enumeration attacks | Auth errors revealed whether email exists | Constant-time, generic error messages throughout auth flow |
+
+### Architecture & Reliability
+
+| Area | Improvement |
+|:---|:---|
+| **Graceful shutdown** | `app.enableShutdownHooks()` — in-flight requests complete before container exit |
+| **CORS hardening** | Whitelist-only via `ALLOWED_ORIGINS` / `FRONTEND_URL` env vars |
+| **Global validation pipe** | `whitelist: true`, `forbidNonWhitelisted: true` — unknown fields rejected at the boundary |
+| **Request tracing** | `X-Request-ID` middleware injects a UUID on every request for distributed log correlation |
+| **Global exception filter** | Uniform error shape across all endpoints, never leaks stack traces |
+| **Rate limiting** | `@nestjs/throttler` applied globally — brute-force protection on all routes |
+| **Helmet** | Secure HTTP headers (CSP, HSTS, X-Frame-Options, etc.) set on every response |
+| **Employee ID collision** | Sequential `SV-000001` generation uses atomic DB counter — zero collision |
+| **AuthModule** | `Employee` + `Role` schemas registered so `JwtStrategy` populates full user context |
+
+### Containerisation & Deployment
+
+| Artifact | Detail |
+|:---|:---|
+| **Dockerfile** | Multi-stage build, non-root `node` user, `dumb-init` PID 1, production `node_modules` only |
+| **`.dockerignore`** | Excludes `node_modules`, `dist`, `.env`, test files from build context |
+| **`k8s/namespace.yaml`** | Isolated `safevitals` namespace |
+| **`k8s/deployment.yaml`** | 2-replica Deployment with liveness/readiness probes, resource limits, `envFrom` Secret injection |
+| **`k8s/service.yaml`** | ClusterIP Service on port 4000 |
+| **`k8s/ingress.yaml`** | NGINX Ingress with TLS termination and `/api` path routing |
+| **`k8s/hpa.yaml`** | HorizontalPodAutoscaler (2–10 replicas, 70% CPU target) |
+| **`k8s/configmap.yaml`** | Non-sensitive config (PORT, NODE_ENV) separated from Secrets |
+| **`k8s/secret.example.yaml`** | Kubernetes Secret template (base64 placeholders — never commit real values) |
+
+---
+
+## Key Features
+
+### 1. Authentication & Identity Management
+- **JWT Authentication** — Stateless bearer token auth with configurable expiry
+- **2-Factor Authentication (OTP)** — Email-based, cryptographically secure time-limited OTP on every login
+- **GitHub OAuth2** — Single-click social login for engineering teams
+- **Invitation-Based Onboarding** — Tokenized invite links for new staff with secure first-time password setup
+- **Session Management** — Active session tracking, token revocation, and device logout
+- **Password Security** — `bcryptjs` hashing with 12+ salt rounds, secure reset flows
+- **Enumeration-proof** — All auth errors return the same message regardless of whether an email exists
+
+### 2. Role-Based Access Control (RBAC)
+- Hierarchical roles: `Super Admin`, `HR Admin`, `Operations Manager`, `Standard Employee`
+- Fine-grained permission strings (e.g., `employees.view`, `leave.review`, `audit.view`)
+- `RolesGuard` + `@Roles()` enforced on every protected route
+- `PermissionsGuard` + `@Permissions()` for fine-grained per-endpoint checks
+- Roles and permission sets are fully manageable at runtime via the Roles API
+
+### 3. Employee Directory & Lifecycle
+- Sequential, zero-collision Employee ID generation (`SV-000001`)
+- Full CRUD with profile fields: name, contact, avatar, department, team, position, work schedule
+- Status transitions: `Active → Suspended → Deactivated`
+- Aggregate stats endpoint: headcount, department breakdown, attendance rate
+- Invitation token dispatched server-side only — never returned in response body
+
+### 4. Attendance & Shift Tracking
+- Daily `check-in` / `check-out` with GPS coordinates
+- Multi-interval break tracking with automatic working-minutes and break-minutes calculation
+- Work schedules: configurable recurring weekly shifts (start time, end time, working days)
+- IDOR protection: employees can only modify their own attendance records
+- Today's attendance summary endpoint for the mobile dashboard
+
+### 5. Leave Management
+- Employee self-service leave application (`Casual`, `Sick`, `Annual`)
+- Manager review queue: `Approve`, `Reject`, `Cancel` actions
+- Leave history and status tracking per employee
+
+### 6. Tasks & Sprints
+- Assign tasks to employees or teams with priority: `Urgent`, `High`, `Medium`, `Low`
+- Kanban status transitions: `To Do → In Progress → Done`
+- Overdue task detection and bulk status updates
+
+### 7. Support & Helpdesk Ticketing
+- Categorised ticket creation: `XR Hardware`, `IT Support`, `HR`, `Facilities`
+- Threaded conversation messages per ticket
+- Resolution workflow: `Open → Resolved`
+
+### 8. Reports & Cloud Storage
+- Multipart file upload for incident reports and shift documentation
+- Files stored in **Supabase Storage** with signed URL access
+- Report reviewer / approval workflows
+
+### 9. Notifications
+- In-app notification creation and read tracking
+- FCM/APNs push device token registration for mobile push delivery
+
+### 10. Audit Logging
+- Every significant action (login, role change, employee update, leave approval) is auto-logged
+- Paginated audit trail API with timestamp, actor, action type, and target resource
+- Restricted to `Super Admin` and `Admin` roles
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Framework** | [NestJS 11](https://nestjs.com/) |
+| **Language** | TypeScript 5.7 |
+| **Database** | MongoDB via [Mongoose 9](https://mongoosejs.com/) + Atlas |
+| **Authentication** | Passport.js (`passport-jwt`, `passport-github2`) |
+| **Password Hashing** | `bcryptjs` (12+ salt rounds) |
+| **OTP / 2FA** | `crypto.randomInt()` — Cryptographically Secure PRNG |
+| **Validation** | `class-validator` + `class-transformer` |
+| **Cloud Storage** | Supabase Storage (`@supabase/supabase-js`) |
+| **API Docs** | Swagger / OpenAPI 3.0 (`@nestjs/swagger`) |
+| **Rate Limiting** | `@nestjs/throttler` |
+| **Security Headers** | `helmet` |
+| **Containerisation** | Docker (multi-stage, non-root, `dumb-init`) |
+| **Orchestration** | Kubernetes (Deployment, HPA, Ingress, ConfigMap, Secret) |
+| **Unique IDs** | `uuid` |
+| **Testing** | Jest + Supertest |
+
+---
+
+## Project Structure
+
+```
 Safe-vitalXR-Backend/
 ├── src/
-│   ├── access-requests/    # System access request workflows
-│   ├── attendance/         # Check-in/out, breaks, GPS geolocation
-│   ├── audit/              # Immutable audit logging
-│   ├── auth/               # JWT, OTP, GitHub OAuth, invitation activation
-│   ├── common/             # Global filters, middlewares, decorators, storage service
-│   ├── departments/        # Department hierarchy
-│   ├── employees/          # Employee directory, stats, lifecycle
-│   ├── leave/              # Leave applications and approvals
-│   ├── mobile/             # Unified mobile dashboard aggregator
-│   ├── notifications/      # Notifications and push device tokens
+│   ├── access-requests/    # Formal elevated permission request workflows
+│   ├── attendance/         # Check-in, check-out, breaks, GPS location
+│   ├── audit/              # Immutable audit log (auto-recorded, admin-only read)
+│   ├── auth/               # JWT, OTP 2FA, GitHub OAuth, invitations, sessions
+│   │   ├── dto/            # Login, OTP, setup-password DTOs
+│   │   ├── guards/         # JWT auth guard
+│   │   ├── schemas/        # Invitation, OTP, Session Mongoose schemas
+│   │   └── strategies/     # Passport JWT & GitHub strategies (role-aware)
+│   ├── common/
+│   │   ├── config/         # ENV validation schema (Joi)
+│   │   ├── decorators/     # @CurrentUser, @Permissions, @Public, @Roles
+│   │   ├── filters/        # Global exception filter (sanitised error responses)
+│   │   ├── guards/         # RolesGuard, PermissionsGuard
+│   │   ├── middleware/     # X-Request-ID injection middleware
+│   │   └── services/       # Supabase storage service
+│   ├── departments/        # Department CRUD + archive
+│   ├── employees/          # Employee directory, stats, lifecycle transitions
+│   ├── health/             # Health check endpoint (liveness + DB probe)
+│   ├── leave/              # Leave application + manager review workflow
+│   ├── mobile/             # Unified mobile dashboard aggregator (single round-trip)
+│   ├── notifications/      # In-app notifications + push device tokens
 │   ├── positions/          # Job positions and levels
-│   ├── reports/            # File uploads and report submissions
-│   ├── roles/              # RBAC roles and permissions
-│   ├── schedules/          # Shift work schedules
-│   ├── tasks/              # Task tracking and assignment
+│   ├── reports/            # File upload reports + reviewer approval
+│   ├── roles/              # RBAC roles and permission set management
+│   ├── schedules/          # Work shift schedule configuration
+│   ├── tasks/              # Task assignment + Kanban status transitions
 │   ├── teams/              # Team groupings under departments
-│   ├── tickets/            # Support tickets & messaging
-│   ├── users/              # Core user identity & password security
-│   ├── app.module.ts       # Root module configuration
-│   ├── main.ts             # Application entry point, Swagger, CORS
-│   └── seed.ts             # Database seeder (roles, admin, defaults)
-├── test/                   # End-to-end and integration tests
+│   ├── tickets/            # Support tickets + threaded messages
+│   ├── users/              # Core user identity and password management
+│   ├── app.module.ts       # Root NestJS module
+│   ├── main.ts             # Entry point (Swagger, CORS, Helmet, Shutdown hooks)
+│   └── seed.ts             # Database seeder (roles, departments, default admin)
+├── k8s/                    # Kubernetes manifests
+│   ├── namespace.yaml
+│   ├── deployment.yaml     # 2-replica Deployment + probes + resource limits
+│   ├── service.yaml        # ClusterIP Service
+│   ├── ingress.yaml        # NGINX Ingress + TLS
+│   ├── hpa.yaml            # HorizontalPodAutoscaler (2–10 replicas)
+│   ├── configmap.yaml      # Non-secret config
+│   └── secret.example.yaml # Secret template (NEVER commit with real values)
+├── test/                   # End-to-end tests
+├── Dockerfile              # Multi-stage, non-root, dumb-init production image
+├── .dockerignore
 ├── .env.example            # Environment variables template
-└── package.json            # Dependencies and scripts
+├── nest-cli.json
+├── tsconfig.json
+└── package.json
 ```
 
 ---
 
-## ⚙️ Getting Started
+## Getting Started
 
 ### Prerequisites
-- **Node.js**: v18 or higher (v20+ recommended)
-- **MongoDB**: Local MongoDB server or MongoDB Atlas cluster connection string
 
-### 1. Installation
-Clone the repository and install dependencies:
+- **Node.js** v18+ (v20 LTS recommended)
+- **MongoDB** — Local instance or [MongoDB Atlas](https://www.mongodb.com/atlas) cloud cluster
+- **npm** v9+
+- **Docker** (optional, for containerised runs)
+
+### 1. Install Dependencies
+
 ```bash
+cd Safe-vitalXR-Backend
 npm install
 ```
 
-### 2. Environment Variables Configuration
-Copy the `.env.example` file to `.env`:
+### 2. Configure Environment Variables
+
 ```bash
 cp .env.example .env
 ```
-Update `.env` with your settings:
-```env
-# Server
-PORT=4000
-NODE_ENV=development
 
-# MongoDB Connection
-MONGODB_URI=mongodb://localhost:27017/safevitals
+Fill in your values — see [Environment Variables](#environment-variables) below.
 
-# JWT & Session Secret
-SESSION_SECRET=your_super_secret_random_jwt_key_here
+### 3. Seed the Database
 
-# (Optional) Supabase Storage for Report Attachments
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+Initialize the database with default roles, departments, positions, and the Super Admin account:
 
-# (Optional) GitHub OAuth
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
-GITHUB_CALLBACK_URL=http://localhost:4000/api/auth/github/callback
-FRONTEND_URL=http://localhost:3000
-```
-
-### 3. Database Seeding
-Initialize the database with default roles, departments, positions, and a default Super Admin account:
 ```bash
 npx ts-node -r tsconfig-paths/register src/seed.ts
 ```
 
-> **Default Seeded Admin Credentials:**
-> - **Email**: `admin@safevitals.com`
-> - **Password**: `Password123!`
+> **Default Super Admin Credentials after seeding:**
+> - Email: value from `SUPERADMIN_EMAIL` in `.env`
+> - Default password: `Password123!`
+>
+> ⚠️ Change this password immediately after first login in production.
 
 ---
 
-## 🏃 Running The Server
+## Environment Variables
+
+All variables are validated at startup via a Joi schema. The server **refuses to start** if required values are missing or malformed.
+
+```env
+# ─── Server ───────────────────────────────────────────────────────────────────
+PORT=4000
+NODE_ENV=development
+
+# ─── Database ─────────────────────────────────────────────────────────────────
+MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/safevitals
+
+# ─── Security ─────────────────────────────────────────────────────────────────
+# Generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+SESSION_SECRET=CHANGE_ME_USE_LONG_RANDOM_STRING_IN_PRODUCTION
+OTP_SECRET=CHANGE_ME_OTP_SECRET
+
+# ─── CORS ─────────────────────────────────────────────────────────────────────
+FRONTEND_URL=http://localhost:3000
+# ALLOWED_ORIGINS=https://app.safevitals.com,https://admin.safevitals.com
+
+# ─── Supabase Storage ─────────────────────────────────────────────────────────
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+
+# ─── Email ────────────────────────────────────────────────────────────────────
+EMAIL_FROM=noreply@safevitals.com
+EMAIL_PROVIDER_KEY=your_email_api_key
+
+# ─── GitHub OAuth (optional) ──────────────────────────────────────────────────
+GITHUB_CLIENT_ID=your_github_app_client_id
+GITHUB_CLIENT_SECRET=your_github_app_client_secret
+GITHUB_CALLBACK_URL=http://localhost:4000/api/auth/github/callback
+
+# ─── Seeding ──────────────────────────────────────────────────────────────────
+SUPERADMIN_EMAIL=admin@safevitals.com
+```
+
+> ⚠️ **Never commit your `.env` file.** It is in `.gitignore`. Use `.env.example` as the template.
+
+---
+
+## Running the Server
 
 ```bash
-# Development (with auto-reload on file changes)
+# Development mode (auto-reload on file changes)
 npm run start:dev
 
-# Production Build & Run
+# Production build + run
 npm run build
 npm run start:prod
 ```
 
 Once running:
-- **API Root**: `http://localhost:4000/api`
-- **Interactive Swagger Documentation**: `http://localhost:4000/api/docs`
+
+| Endpoint | URL |
+| :--- | :--- |
+| **API Base URL** | `http://localhost:4000/api` |
+| **Swagger Docs** | `http://localhost:4000/api/docs` |
+| **Health Check** | `http://localhost:4000/api/health` |
 
 ---
 
-## 📚 API Reference Overview
+## Docker
 
-| Module | Route Prefix | Method Highlights |
-| :--- | :--- | :--- |
-| **Mobile** | `/api/mobile` | `GET /dashboard` (Single round-trip aggregated mobile state) |
-| **Auth** | `/api/auth` | `POST /login`, `POST /verify-otp`, `POST /setup-password`, `GET /me`, `GET /github` |
-| **Employees** | `/api/employees` | `GET /`, `GET /:id`, `POST /`, `PUT /:id`, `PATCH /:id/suspend`, `GET /stats` |
-| **Attendance** | `/api/attendance` | `POST /check-in/:id` (with GPS), `POST /check-out/:id`, `POST /break-start/:id`, `GET /me/today` |
-| **Notifications**| `/api/notifications`| `GET /`, `PATCH /:id/read`, `POST /device-token` (FCM/APNs), `DELETE /device-token/:token` |
-| **Leave** | `/api/leave` | `POST /` (Apply), `PATCH /:id/review` (Approve/Reject), `PATCH /:id/cancel` |
-| **Tasks** | `/api/tasks` | `GET /`, `POST /`, `PUT /:id`, `PATCH /:id/status` |
-| **Tickets** | `/api/tickets` | `GET /`, `POST /`, `POST /:id/messages`, `PATCH /:id/resolve` |
-| **Reports** | `/api/reports` | `POST /` (Multipart upload with Supabase), `PATCH /:id/review` |
-| **Schedules** | `/api/schedules` | `GET /`, `POST /`, `PUT /:id`, `DELETE /:id` |
-| **Roles & RBAC**| `/api/roles` | `GET /`, `POST /`, `PATCH /:id/permissions` |
-| **Departments**| `/api/departments` | `GET /`, `POST /`, `PUT /:id`, `PATCH /:id/archive` |
-| **Teams** | `/api/teams` | `GET /`, `POST /`, `PUT /:id`, `PATCH /:id/archive` |
-| **Positions** | `/api/positions` | `GET /`, `POST /`, `PUT /:id` |
-| **Audit Logs** | `/api/audit` | `GET /` (Paginated security audit trail) |
-
----
-
-## 🧪 Testing
+### Build the Image
 
 ```bash
-# Run unit tests
-npm test
+docker build -t safevitals-backend:latest .
+```
 
-# Run tests in watch mode
-npm run test:watch
+### Run the Container
 
-# Test coverage
-npm run test:cov
+```bash
+docker run -d \
+  --name safevitals-backend \
+  -p 4000:4000 \
+  --env-file .env \
+  safevitals-backend:latest
+```
+
+The Dockerfile uses a **multi-stage build**:
+
+- **Stage 1 (builder)** — Compiles TypeScript and prunes devDependencies
+- **Stage 2 (runner)** — Copies only `dist/` + production `node_modules` into a clean Alpine image
+
+Security properties:
+
+- Runs as the non-root **`node`** user
+- Uses **`dumb-init`** as PID 1 for correct SIGTERM signal forwarding and graceful shutdown
+- No source code, test files, or `.env` in the final image
+
+---
+
+## Kubernetes Deployment
+
+All manifests live in [`k8s/`](k8s/).
+
+### Quick Deploy
+
+```bash
+# 1. Create namespace
+kubectl apply -f k8s/namespace.yaml
+
+# 2. Create secrets (fill in secret.example.yaml — NEVER commit real values)
+cp k8s/secret.example.yaml k8s/secret.yaml
+# ... edit k8s/secret.yaml with base64-encoded values ...
+kubectl apply -f k8s/secret.yaml -n safevitals
+
+# 3. Apply remaining manifests
+kubectl apply -f k8s/configmap.yaml  -n safevitals
+kubectl apply -f k8s/deployment.yaml -n safevitals
+kubectl apply -f k8s/service.yaml    -n safevitals
+kubectl apply -f k8s/ingress.yaml    -n safevitals
+kubectl apply -f k8s/hpa.yaml        -n safevitals
 ```
 
 ---
 
-## 📄 License
-This project is proprietary and confidential to Safe Vitals XR.
+## API Reference
+
+| Module | Route Prefix | Key Endpoints |
+| :--- | :--- | :--- |
+| **Auth** | `/api/auth` | `POST /login`, `POST /verify-otp`, `POST /setup-password`, `POST /resend-otp`, `GET /me`, `POST /logout`, `GET /github` |
+| **Employees** | `/api/employees` | `GET /`, `GET /:id`, `POST /`, `PUT /:id`, `PATCH /:id/suspend`, `DELETE /:id`, `GET /stats` |
+| **Attendance** | `/api/attendance` | `POST /check-in/:id`, `POST /check-out/:id`, `POST /break-start/:id`, `POST /break-end/:id`, `GET /me/today` |
+| **Leave** | `/api/leave` | `GET /`, `POST /`, `PATCH /:id/review`, `PATCH /:id/cancel` |
+| **Tasks** | `/api/tasks` | `GET /`, `POST /`, `PUT /:id`, `PATCH /:id/status`, `DELETE /:id` |
+| **Tickets** | `/api/tickets` | `GET /`, `POST /`, `POST /:id/messages`, `PATCH /:id/resolve` |
+| **Reports** | `/api/reports` | `POST /`, `GET /`, `PATCH /:id/review` |
+| **Roles** | `/api/roles` | `GET /`, `POST /`, `PUT /:id`, `PATCH /:id/permissions` |
+| **Audit Logs** | `/api/audit` | `GET /` (paginated, Admin+ only) |
+| **Mobile** | `/api/mobile` | `GET /dashboard` (aggregated state) |
+| **Health** | `/api/health` | `GET /` (liveness probe) |
+
+---
+
+## Authentication Flow
+
+1. **Login**: `POST /api/auth/login` → Server validates credentials → generates CSPRNG OTP → sends to email.
+2. **Verify**: `POST /api/auth/verify-otp` → Returns `{ accessToken, user }`.
+3. **Protected**: Include `Authorization: Bearer <accessToken>` header.
+
+---
+
+## RBAC — Roles & Permissions
+
+- **Roles**: `Super Admin`, `HR Admin`, `Operations Manager`, `Standard Employee`.
+- **Enforcement**: `RolesGuard` + `@Roles()` on all protected controllers.
+- **Runtime-configurable**: Permissions are managed via the Roles API without redeploying.
+
+---
+
+## Security Architecture
+
+- **OTP**: CSPRNG via `crypto.randomInt()`.
+- **Hashing**: `bcryptjs` (12+ rounds).
+- **Validation**: Global `ValidationPipe` with strict whitelisting.
+- **Hardening**: `helmet`, rate limiting, IDOR ownership checks, non-root Docker execution.
+
+---
+
+## Testing
+
+```bash
+npm test          # Unit
+npm run test:e2e  # E2E
+```
+
+---
+
+## Frontend
+
+The SafeVitals XR Frontend is a separate Next.js 16 application that connects to this backend at `http://localhost:4000/api`.
+
+- **Frontend Repository**: `Safevital XR-frontend/`
+- **Dev URL**: `http://localhost:3000`
+- **Offline Mode**: Full offline standalone operation using Zustand + localStorage persistence — attendance, tasks, leave, and tickets are cached locally if the API is unreachable.
+
+---
+
+## License
+
+This project is proprietary and confidential.  
+**Property of Safe Vitals XR Inc.** — All Rights Reserved.
