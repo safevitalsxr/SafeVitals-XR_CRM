@@ -574,9 +574,7 @@ export class AuthService {
   // HELPERS (Cryptographically Secure OTP Generation)
   // ─────────────────────────────────────────
   private generateOtp(): string {
-    // TEMPORARY FIX: Emails are blocked by Render free tier firewall.
-    // Hardcoding OTP to 123456 so users can still register and login.
-    return '123456';
+    return crypto.randomInt(100000, 1000000).toString();
   }
 
   async firebaseLogin(idToken: string, ipAddress?: string, userAgent?: string) {
@@ -630,6 +628,14 @@ export class AuthService {
   async register(fullName: string, email: string, phone: string, ipAddress?: string, userAgent?: string) {
     await this.validateEmailAndIp(email, ipAddress);
     const normalizedEmail = email.toLowerCase().trim();
+
+    // Prevent temporary/disposable emails
+    const disposableDomains = require('disposable-email-domains');
+    const domain = normalizedEmail.split('@')[1];
+    if (disposableDomains.includes(domain)) {
+      throw new BadRequestException('Temporary or disposable email addresses are not allowed for security reasons.');
+    }
+
     let user = await this.usersService.findByEmail(normalizedEmail);
     if (user && user.status === AccountStatus.ACTIVE) {
       throw new ConflictException('Email already registered and active');
