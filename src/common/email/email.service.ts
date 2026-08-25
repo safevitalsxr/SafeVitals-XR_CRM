@@ -52,8 +52,8 @@ export class EmailService implements OnModuleInit {
         await this.smtpTransporter.verify();
         this.logger.log('SMTP connection verified successfully.');
       } catch (err: any) {
-        this.logger.error(`SMTP Connection Failed: ${err.message}`);
-        throw new Error(`SMTP Configuration Error: ${err.message}`);
+        this.logger.error(`SMTP Connection Failed: ${err.message}. Emails will be simulated in server logs.`);
+        this.smtpTransporter = null;
       }
     }
   }
