@@ -114,3 +114,17 @@ export class VerifyRegistrationOtpDto {
   })
   password: string;
 }
+
+export class UpdatePasswordDto {
+  @ApiProperty({ example: 'OldPassword123!', description: 'Current password' })
+  @IsString()
+  currentPassword: string;
+
+  @ApiProperty({ example: 'NewPassword123!', description: 'New password' })
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @Matches(/^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).*$/, {
+    message: 'Password must contain at least one uppercase letter, one number, and one special character',
+  })
+  newPassword: string;
+}

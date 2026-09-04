@@ -49,8 +49,16 @@ async function bootstrap() {
 
   const superAdminRole = (await roles.findAll()).find((r) => r.name === 'Super Admin');
 
-  const adminEmail = config.get<string>('SUPERADMIN_EMAIL') || 'admin@safevitals.com';
-  const adminPassword = config.get<string>('SUPERADMIN_INITIAL_PASSWORD') || 'SafeVitalsAdmin@2026!';
+  const adminEmail = config.get<string>('SUPERADMIN_EMAIL');
+  const adminPassword = config.get<string>('SUPERADMIN_INITIAL_PASSWORD');
+
+  if (!adminEmail || !adminPassword) {
+    console.error(
+      '❌ SUPERADMIN_EMAIL and SUPERADMIN_INITIAL_PASSWORD must both be set in the environment before seeding. Refusing to use a hardcoded default admin password.',
+    );
+    await app.close();
+    return;
+  }
 
   console.log(`🌱 Initializing Super Admin Employee (${adminEmail})...`);
   try {

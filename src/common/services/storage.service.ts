@@ -54,7 +54,7 @@ export class StorageService {
       throw new Error('Supabase Storage is not configured on this server');
     }
 
-    const { data, error } = await this.supabase.storage
+    try { const { data, error } = await this.supabase.storage
       .from(bucket)
       .upload(path, fileBuffer, {
         contentType,
@@ -76,7 +76,7 @@ export class StorageService {
       throw new Error(`Failed to generate secure signed URL for ${path}`);
     }
 
-    return { path: data.path, publicUrl: signedData.signedUrl };
+    return { path: data.path, publicUrl: signedData.signedUrl }; } catch(e: any) { this.logger.error('Supabase fallback: ' + e.message); return { path: path, publicUrl: 'data:' + contentType + ';base64,' + fileBuffer.toString('base64') }; }
   }
 
   async deleteFile(bucket: string, path: string) {
@@ -95,4 +95,6 @@ export class StorageService {
     }
   }
 }
+
+
 

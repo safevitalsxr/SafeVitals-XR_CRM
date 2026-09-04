@@ -54,8 +54,14 @@ export class UsersService {
     return this.userModel.findByIdAndUpdate(userId, { status }, { new: true }).exec();
   }
 
-  async updatePassword(userId: string, newPasswordHash: string): Promise<void> {
-    await this.userModel.findByIdAndUpdate(userId, { passwordHash: newPasswordHash, mustChangePassword: false }).exec();
+  async updatePassword(userId: string, newPasswordHash: string, markSetupComplete = false): Promise<void> {
+    const update: any = { passwordHash: newPasswordHash, mustChangePassword: false };
+    if (markSetupComplete) update.passwordSetupComplete = true;
+    await this.userModel.findByIdAndUpdate(userId, update).exec();
+  }
+
+  async setPasswordSetupComplete(userId: string): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, { passwordSetupComplete: true }).exec();
   }
 
   async hashPassword(password: string): Promise<string> {
@@ -121,12 +127,13 @@ export class UsersService {
     const newEmployee = new this.employeeModel(createPayload);
     await newEmployee.save();
 
-    const emailHtml = "<h2>Your SafeVitals XR Account is Approved!</h2><p>Hello $user.firstName,</p><p>An administrator has approved your account. You can now log in using the credentials you created during registration.</p><p><b>Email:</b> $user.email</p>";
+    const emailHtml = `<h2>Your SafeVitals XR Account is Approved!</h2><p>Hello ${user.firstName},</p><p>An administrator has approved your account. You can now log in using the credentials you created during registration.</p><p><b>Email:</b> ${user.email}</p>`;
     await this.emailService.send({ to: user.email, subject: 'SafeVitals XR - Account Approved', html: emailHtml });
     
     return user;
   }
 }
+
 
 
 

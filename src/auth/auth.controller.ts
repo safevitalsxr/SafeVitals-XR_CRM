@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Req, Res, HttpCode, HttpStatus, UseGuards, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto, VerifyOtpDto, ForgotPasswordDto, ResetPasswordDto, SetupPasswordDto, ResendOtpDto, FirebaseLoginDto, RegisterDto, VerifyRegistrationOtpDto } from './dto/auth.dto';
+import { LoginDto, VerifyOtpDto, ForgotPasswordDto, ResetPasswordDto, SetupPasswordDto, ResendOtpDto, FirebaseLoginDto, RegisterDto, VerifyRegistrationOtpDto, UpdatePasswordDto } from './dto/auth.dto';
 import type { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';

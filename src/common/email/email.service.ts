@@ -208,8 +208,8 @@ Body:\n${options.text || options.html}`);
     departmentName?: string,
     employeeId?: string
   ): Promise<boolean> {
-    const inviteUrl = `${this.frontendUrl}/setup-password?token=${encodeURIComponent(token)}`;
-    const subject = `Welcome to SafeVitals XR — Activate Your Enterprise Workspace`;
+    const inviteUrl = `${this.frontendUrl}/activate-account?token=${encodeURIComponent(token)}`;
+    const subject = `[Action Required] SafeVitals XR Workspace Provisioning`;
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -239,7 +239,7 @@ Body:\n${options.text || options.html}`);
                 </span>
               </div>
               <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">
-                Welcome to SafeVitals XR
+                Workspace Provisioned
               </h1>
               <p style="margin: 10px 0 0 0; font-size: 14px; color: #9ca3af; line-height: 1.5;">
                 Your enterprise spatial telemetry and workforce command account has been provisioned by Super Administration.
@@ -278,13 +278,13 @@ Body:\n${options.text || options.html}`);
               </div>
 
               <p style="font-size: 13px; color: #9ca3af; line-height: 1.6; margin: 0 0 24px 0; text-align: center;">
-                Click the button below to activate your account and configure your secure permanent credentials:
+                Use the button below to verify your identity and configure your secure permanent credentials:
               </p>
 
               <!-- CTA Button -->
               <div style="text-align: center; margin: 28px 0;">
                 <a href="${inviteUrl}" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 14px 32px; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4); text-transform: uppercase; letter-spacing: 0.5px;">
-                  Activate My Account &rarr;
+                  Complete Setup &rarr;
                 </a>
               </div>
 
@@ -524,7 +524,7 @@ Body:\n${options.text || options.html}`);
    */
   async sendWorkspaceAccessGranted(to: string, firstName = 'User', role = 'Employee', department = 'Workspace'): Promise<boolean> {
     const loginUrl = `${this.frontendUrl}/login`;
-    const subject = `[Welcome] Your SafeVitals XR Workspace is Ready`;
+    const subject = `[SafeVitals XR] Workspace Status Update: Provisioned`;
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -544,7 +544,7 @@ Body:\n${options.text || options.html}`);
           <tr>
             <td style="padding: 32px 32px 20px 32px; text-align: center;">
               <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
-                Workspace Access Granted
+                Workspace Provisioned
               </h1>
             </td>
           </tr>
@@ -555,7 +555,7 @@ Body:\n${options.text || options.html}`);
                   Hello <strong style="color: #ffffff;">${firstName}</strong>,
                 </p>
                 <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #9ca3af;">
-                  Your SafeVitals XR enterprise onboarding is fully complete! Your administrator has granted you access and assigned you the role of <strong style="color: #ffffff;">${role}</strong>.
+                  Your SafeVitals XR enterprise onboarding is fully complete. Your administrator has finalized your identity setup and assigned you the role of <strong style="color: #ffffff;">${role}</strong>.
                 </p>
                 <div style="text-align: center; margin: 32px 0;">
                   <a href="${loginUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); border: 1px solid rgba(255,255,255,0.1);">
@@ -585,6 +585,84 @@ Body:\n${options.text || options.html}`);
       subject,
       html,
       text: 'Your SafeVitals XR enterprise onboarding is complete! You can now log in.',
+    });
+  }
+
+  async sendTaskAssigned(
+    to: string,
+    assigneeFirstName = 'Team Member',
+    taskTitle: string,
+    assignedByName = 'Your manager',
+    dueDate?: string,
+    priority?: string,
+  ): Promise<boolean> {
+    const tasksUrl = `${this.frontendUrl}/app/tasks`;
+    const subject = `[SafeVitals XR] New Task Assigned: ${taskTitle}`;
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Task Assigned</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #07090e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #e6edf3;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #07090e; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 560px; background: linear-gradient(180deg, #0d1117 0%, #090d13 100%); border: 1px solid #1f2937; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6);" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="height: 4px; background: linear-gradient(90deg, #3b82f6 0%, #6366f1 100%);"></td>
+          </tr>
+          <tr>
+            <td style="padding: 32px 32px 20px 32px; text-align: center;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
+                New Task Assigned
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 32px 32px 32px;">
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid #1f2937; border-radius: 12px; padding: 24px;">
+                <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #9ca3af;">
+                  Hello <strong style="color: #ffffff;">${assigneeFirstName}</strong>,
+                </p>
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: #9ca3af;">
+                  <strong style="color: #ffffff;">${assignedByName}</strong> assigned you a new task:
+                </p>
+                <div style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; padding: 16px 18px; margin-bottom: 20px;">
+                  <p style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #ffffff;">${taskTitle}</p>
+                  ${dueDate ? `<p style="margin: 0 0 2px 0; font-size: 13px; color: #9ca3af;">Due: <strong style="color: #e6edf3;">${dueDate}</strong></p>` : ''}
+                  ${priority ? `<p style="margin: 0; font-size: 13px; color: #9ca3af;">Priority: <strong style="color: #e6edf3;">${priority}</strong></p>` : ''}
+                </div>
+                <div style="text-align: center; margin: 24px 0 8px 0;">
+                  <a href="${tasksUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); border: 1px solid rgba(255,255,255,0.1);">
+                    View Task
+                  </a>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 32px 32px 32px; border-top: 1px solid #1f2937; text-align: center;">
+              <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280;">
+                SafeVitals XR Inc. &bull; Next-Gen Spatial Workforce & Telemetry Health
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    return this.send({
+      to,
+      subject,
+      html,
+      text: `${assignedByName} assigned you a new task: "${taskTitle}"${dueDate ? ` (due ${dueDate})` : ''}. View it at ${tasksUrl}`,
     });
   }
 }

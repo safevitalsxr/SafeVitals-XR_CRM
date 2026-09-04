@@ -45,33 +45,6 @@ export class EmployeesService {
     return `EMP-${num}`;
   }
 
-  
-  async promotePendingUser(userId: string, dto: any, actorId?: string) {
-    // Approve user (sets ACTIVE and sends email)
-    const user = await this.usersService.approveUser(userId);
-    
-    // Auto-generate Employee ID
-    const employeeId = await this.generateEmployeeId();
-
-    // Create Employee record
-    const createPayload: any = {
-      userId: user._id,
-      employeeId,
-      departmentId: dto.departmentId ? new Types.ObjectId(dto.departmentId) : null,
-      teamId: dto.teamId ? new Types.ObjectId(dto.teamId) : null,
-      positionId: dto.positionId ? new Types.ObjectId(dto.positionId) : null,
-      roleId: dto.roleId ? new Types.ObjectId(dto.roleId) : null,
-      managerId: dto.managerId ? new Types.ObjectId(dto.managerId) : null,
-      joiningDate: new Date().toISOString().split('T')[0],
-    };
-    if (user.firebaseUid) createPayload.firebaseUid = user.firebaseUid;
-
-    const newEmployee = new this.employeeModel(createPayload);
-    await newEmployee.save();
-
-    return { user, employee: newEmployee };
-  }
-
   async create(dto: CreateEmployeeDto, actorId?: string) {
     // Check email uniqueness
     const existingUser = await this.usersService.findByEmail(dto.email);
@@ -292,7 +265,7 @@ export class EmployeesService {
       { $sort: { createdAt: -1 } },
       {
         $facet: {
-          data: [{ $skip: skip }, { $limit: limit }, { $addFields: { id: '$_id', 'user.id': '$user._id' } }, { $project: { 'user.passwordHash': 0 } }],
+          data: [{ $skip: skip }, { $limit: limit }, { $addFields: { id: '$_id', 'user.id': '$user._id' } }, { $project: { 'user.passwordHash': 0, 'userId.passwordHash': 0 } }],
           total: [{ $count: 'count' }],
         },
       },

@@ -34,6 +34,9 @@ export class User {
   @Prop({ default: false, required: false })
   mustChangePassword?: boolean;
 
+  @Prop({ default: false })
+  passwordSetupComplete?: boolean;
+
   @Prop({ sparse: true, index: true })
   firebaseUid?: string;
 
@@ -51,3 +54,4 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+

@@ -50,8 +50,11 @@ export class EmployeesController {
   @Post()
   @Roles('Super Admin', 'Admin', 'HR Admin')
   @ApiOperation({ summary: 'Create new employee with email/password (Admin/HR only)' })
-  create(@Body() dto: CreateEmployeeDto, @CurrentUser('_id') actorId: string) {
-    return this.employees.create(dto, actorId?.toString());
+  create(@Body() dto: CreateEmployeeDto, @CurrentUser() user: any) {
+    if (dto.roleId && !user?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can assign a role when creating an employee.');
+    }
+    return this.employees.create(dto, user?._id?.toString());
   }
 
   @Post('onboard-uid')
@@ -64,8 +67,11 @@ export class EmployeesController {
   @Put(':id')
   @Roles('Super Admin', 'Admin', 'HR Admin')
   @ApiOperation({ summary: 'Update employee (Admin/HR only)' })
-  update(@Param('id') id: string, @Body() dto: UpdateEmployeeDto, @CurrentUser('_id') actorId: string) {
-    return this.employees.update(id, dto, actorId?.toString());
+  update(@Param('id') id: string, @Body() dto: UpdateEmployeeDto, @CurrentUser() user: any) {
+    if (dto.roleId && !user?.isSuperAdmin) {
+      throw new ForbiddenException('Only Super Admin can change an employee\'s role.');
+    }
+    return this.employees.update(id, dto, user?._id?.toString());
   }
 
   @Patch(':id/suspend')

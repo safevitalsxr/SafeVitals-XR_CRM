@@ -31,6 +31,12 @@ export class Task {
 
   @Prop()
   dueDate?: Date;
+
+  @Prop()
+  completionReport?: string;
+
+  @Prop()
+  completedAt?: Date;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);

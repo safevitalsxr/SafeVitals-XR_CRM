@@ -50,7 +50,6 @@ export class AuthService {
   // ─────────────────────────────────────────
   private async validateEmailAndIp(email: string, ipAddress?: string) {
     const normalizedEmail = email.toLowerCase().trim();
-    if (normalizedEmail === 'parupallisaiharshitha@gmail.com') return;
 
     const disposableDomains = require('disposable-email-domains');
     const domain = normalizedEmail.split('@')[1];
@@ -268,9 +267,8 @@ export class AuthService {
     const employee = await this.employeeModel.findOne({ userId: user._id }).populate('roleId').lean().exec();
     const roleDoc: any = employee?.roleId;
     const superadminEmail = this.configService.get<string>('SUPERADMIN_EMAIL');
-    const isSuperAdminEmail = 
-      (superadminEmail && user.email.toLowerCase() === superadminEmail.toLowerCase()) || 
-      user.email.toLowerCase() === 'parupallisaiharshitha@gmail.com';
+    const isSuperAdminEmail =
+      !!superadminEmail && user.email.toLowerCase() === superadminEmail.toLowerCase();
 
     const roleName = isSuperAdminEmail ? 'Super Admin' : roleDoc?.name || 'Employee';
     const permissions = isSuperAdminEmail ? ['*'] : roleDoc?.permissions || [];
@@ -279,6 +277,7 @@ export class AuthService {
     return {
       success: true,
       token,
+      mustChangePassword: user.mustChangePassword ?? false,
       user: {
         id: (user._id as Types.ObjectId).toString(),
         email: user.email,
@@ -286,6 +285,7 @@ export class AuthService {
         lastName: user.lastName,
         status: user.status,
         mustChangePassword: user.mustChangePassword ?? false,
+        passwordSetupComplete: user.passwordSetupComplete ?? false,
         role: roleName,
         isSuperAdmin,
         permissions,
@@ -367,6 +367,8 @@ export class AuthService {
       attempts: 0,
       used: false,
     });
+
+    await this.emailService.sendPasswordReset(normalizedEmail, resetToken, user.firstName);
 
     await this.auditService.log({
       actorId: (user._id as Types.ObjectId).toString(),
@@ -474,7 +476,7 @@ export class AuthService {
     if (!invitation) throw new BadRequestException('Invalid or expired invitation token');
 
     const hash = await bcrypt.hash(password, 12);
-    await this.usersService.updatePassword(invitation.userId.toString(), hash);
+    await this.usersService.updatePassword(invitation.userId.toString(), hash, true);
     await this.usersService.updateStatus(invitation.userId.toString(), AccountStatus.ACTIVE);
 
     await this.auditService.log({
@@ -487,6 +489,50 @@ export class AuthService {
     });
 
     return { success: true, message: 'Account activated successfully. Please login.' };
+  }
+
+  // ─────────────────────────────────────────
+  // CHANGE PASSWORD (forced after first login)
+  // ─────────────────────────────────────────
+  async changePassword(userId: string, currentPassword: string, newPassword: string, ipAddress?: string, userAgent?: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+
+    if (!user.passwordHash) {
+      throw new BadRequestException('No password set on this account. Please use the activation link.');
+    }
+
+    const isValid = await this.usersService.validatePassword(currentPassword, user.passwordHash);
+    if (!isValid) {
+      await this.auditService.log({
+        actorId: (user._id as Types.ObjectId).toString(),
+        action: 'PASSWORD_CHANGE_FAILED',
+        entityType: 'User',
+        entityId: (user._id as Types.ObjectId).toString(),
+        metadata: { reason: 'Current password incorrect' },
+        ipAddress,
+        userAgent,
+      });
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    if (currentPassword === newPassword) {
+      throw new BadRequestException('New password must be different from your current password');
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await this.usersService.updatePassword((user._id as Types.ObjectId).toString(), hash, true);
+
+    await this.auditService.log({
+      actorId: (user._id as Types.ObjectId).toString(),
+      action: 'PASSWORD_CHANGED_AFTER_LOGIN',
+      entityType: 'User',
+      entityId: (user._id as Types.ObjectId).toString(),
+      ipAddress,
+      userAgent,
+    });
+
+    return { success: true, message: 'Password updated successfully.' };
   }
 
   // ─────────────────────────────────────────
@@ -536,6 +582,11 @@ export class AuthService {
 
     if (user.status === AccountStatus.SUSPENDED) throw new UnauthorizedException('Account is suspended');
     if (user.status === AccountStatus.DEACTIVATED) throw new UnauthorizedException('Account is deactivated');
+
+    // Gate GitHub login behind password setup completion
+    if (!user.passwordSetupComplete) {
+      throw new UnauthorizedException('Please complete your password setup before using GitHub login. Log in with your email and password first.');
+    }
     
     if (user.status === AccountStatus.INVITED) {
       await this.usersService.updateStatus(user._id.toString(), AccountStatus.ACTIVE);
@@ -584,6 +635,9 @@ export class AuthService {
     }
     const normalizedEmail = decodedToken.email.toLowerCase().trim();
     let user = await this.usersService.findByEmail(normalizedEmail);
+    if (user && !user.passwordSetupComplete) {
+      throw new UnauthorizedException('Please complete your password setup before using social login. Log in with your email and password first.');
+    }
     if (!user) {
       user = await this.usersService.create(normalizedEmail, undefined, decodedToken.name?.split(' ')[0] || 'User', decodedToken.name?.split(' ').slice(1).join(' ') || '', false);
       const crypto = require('crypto');
@@ -694,6 +748,8 @@ export class AuthService {
       status: AccountStatus.ACTIVE,
       passwordHash,
       firebaseUid,
+      mustChangePassword: true,
+      passwordSetupComplete: false,
       $unset: { registrationOtp: "", registrationOtpExpiry: "", registrationToken: "" }
     }).exec();
 
