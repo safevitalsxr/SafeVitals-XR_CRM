@@ -6,6 +6,11 @@ files:
     destination: /home/my-app/backend
 
 hooks:
+  ApplicationStop:
+    - location: stop.sh
+      timeout: 60
+      runas: root
+
   ApplicationStart:
     - location: start.sh
       timeout: 300
